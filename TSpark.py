@@ -8,9 +8,9 @@ from tony_modules.lego_funcs import setup as lego_setup, post_parse, parsereact
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # GLOBAL DEFINITIONS
 ROOTPATH = os.path.join(os.environ['TONYROOT'])   #Bot's root path
-TOKEN = open(os.path.join(ROOTPATH, 'token'), 'r').read()  # Read token from local file (as opposed to HCing)
-BANNED_CHANNELS = [channel.rstrip('\n') for channel in open('files/blacklist')]  # Read list of banned channels
-COMMANDS = open(os.path.join(ROOTPATH, 'files', 'commands'), 'r').read()  # Read help message
+TOKEN = open(os.path.join(ROOTPATH, 'storage', 'token'), 'r').read()  # Read token from local file (as opposed to HCing)
+BANNED_CHANNELS = [channel.rstrip('\n') for channel in open('storage/blacklist')]  # Read list of banned channels
+COMMANDS = open(os.path.join(ROOTPATH, 'storage', 'commands'), 'r').read()  # Read help message
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # BOT SETUP
 bot = commands.Bot(command_prefix='!', case_insensitive=False)  # Configure bot prefix
