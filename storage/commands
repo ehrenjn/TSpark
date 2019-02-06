@@ -40,6 +40,6 @@ WAK COMMANDS:
 
 !play [STRING] ~ Adds a game for Tony to play
 
-!unplay [STRING] ~ Removes a given game from Tony\'s list',
+!unplay [STRING] ~ Removes a given game from Tony's list',
 
 !history ~ Dumps all messages from a channel into a .txt',
