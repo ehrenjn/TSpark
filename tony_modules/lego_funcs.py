@@ -1,16 +1,18 @@
 import requests
 import random
 import re
+import subprocess
 import discord
 import asyncio
 from .util import \
     JSONStore  # relative import means this wak_funcs.py can only be used as part of the tony_modules package now
 import os
 import io
+import json
 from datetime import datetime, timedelta
 
 ROOTPATH = os.path.join(os.environ['TONYROOT'])   #Bot's root path
-STORAGE_FILE = os.path.join(ROOTPATH, 'files', 'lego_storage.json')
+STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
 
 
 class LegoStore(JSONStore):
@@ -56,6 +58,79 @@ def setup(bot):
     storage = LegoStore()
 
 # AUXILIARY COMMANDS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    @bot.command()
+    async def download(ctx, *links):
+        sesh = requests.Session()
+        headerdata = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/64.0.3282.140 Chrome/64.0.3282.140 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-CA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7}'
+        }
+        files = []
+
+        async def get(sesh, url, headerData, maxNumTries=3):
+            numTries = 0
+            while (numTries < maxNumTries):
+                try:
+                    return sesh.get(url, headers=headerData)
+                except:
+                    numTries += 1
+            await ctx.send("Failed to get data")
+            return False
+
+        async def downloadAlbum(sesh, albumpage, headerdata): # {"album name": "", "album art": f, "files": []}
+            infostart = albumpage.find('trackinfo: ') + len('trackinfo: ')
+            infoend = albumpage.find('\n', infostart) - 1
+            info = json.loads(albumpage[infostart:infoend])
+
+            imagestart = albumpage[
+                              albumpage.find('<link rel="image_src" href="') + len('<link rel="image_src" href="'):]
+            imagelink = imagestart[:imagestart.find('">')]
+
+            namestart = albumpage.find('<title>') + len('<title>')
+            nameend = albumpage.find('</title>')
+            albumname = albumpage[namestart:nameend]
+            await ctx.send(f'Downloading {albumname}....')
+            songs = []
+            trackNum = 1
+            for track in info:
+                if track['file'] is not None:
+                    title = f'{str(trackNum)}.{track["title"]}.mp3'.replace('/', '\\\\')
+                    dlLink = track['file']['mp3-128']
+                    mp3 = await get(sesh, dlLink, headerdata)
+                    songs.append({"title": title, "file": mp3.content})
+                    trackNum += 1
+
+            data = await get(sesh, imagelink, headerdata)
+            return {"name": albumname, "art": data.content, "songs": songs}
+
+        for link in links:
+            albumpage = await get(sesh, link, headerdata)
+            album = await downloadAlbum(sesh, albumpage.content.decode('utf-8'), headerdata)
+            for song in album['songs']:
+                await ctx.send(f'{song["title"]}', file=discord.File(song['file'], song['title']))
+            await ctx.send(file=discord.File(album['art'], 'albumart.png'))
+            await ctx.send("All done")
+
+    @bot.command()
+    async def compile(ctx, mID, *input):
+        msg = await ctx.get_message(mID)
+        req = {}
+        if re.match(r'^```(.|\s)*```$', msg.content):
+            req['language'] = re.sub('```', '', re.match(r'^```.*', msg.content).group(0))
+            req['code'] = re.sub(r'```$', '', re.sub(r'^```.*', '', msg.content))
+            if input:
+                req['input'] = [list(input)]
+            response = await pyDE(req)
+
+            if response['status'] == 'fail':
+                await ctx.send("EPIC FAIL")
+                await ctx.send(json.dumps(response['error']))
+            if response['status'] == 'pass':
+                await ctx.send(f"Results: {json.dumps(response['output'])}")
+        else:
+            await ctx.send("Invalid message")
 
     @bot.command()
     async def joke(ctx):  # Tell a joke using the official Chuck Norris Joke API©
@@ -156,9 +231,6 @@ def setup(bot):
             channels.append(ctx.channel)
         if not users:
             users.append(ctx.author)
-        print(users)
-        print(channels)
-        print(reactions)
         await ctx.send(f"```Searching through last {num} messages, in channel(s) {', '.join(x.name for x in channels)} by user(s) {'/'.join(x.display_name for x in users)} with reaction(s) '{'/'.join(reactions)}' for string(s) '{'/'.join(cmd)}'```")
         for channel in ctx.guild.text_channels:
             if channel.id in (x.id for x in channels):
@@ -254,7 +326,7 @@ def setup(bot):
     @bot.command()
     async def discloud(ctx, *cmd):
         cmd = list(cmd)
-        path = os.path.join(ROOTPATH, 'files', 'discloud')
+        path = os.path.join(ROOTPATH, 'discloud')
         if '-l' in cmd:
             liststring = ""
             for num, val in enumerate(os.listdir(path)):
@@ -298,6 +370,43 @@ def setup(bot):
                 await bot.get_channel(reminders[x]['channel']).send(reminders[x]['user'] + ' - ' + reminders[x]['reminder'])
                 del reminders[x]
                 storage.update()
+
+    async def pyDE(req, mem=16, time=10):
+
+        if mem > 16 or not isinstance(mem, int):
+            mem = 16
+
+        if time > 10 or not isinstance(time, int):
+            time = 10
+
+        req['timeout'] = time
+        print(json.dumps(req))
+        if int(subprocess.run(['docker ps | grep \'pyde\' | wc -l'], stdout=subprocess.PIPE, shell=True).stdout.decode(
+                'utf-8')) > 5:
+            return dict({'status': 'fail', 'error': 'Error: Too many active containers'})
+
+        else:
+            try:
+                resp = subprocess.run(['bash',
+                                       './init.sh',
+                                       f'{json.dumps(req)}'],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      timeout=time)
+                print(resp.stdout)
+                print(resp.stderr)
+            except subprocess.TimeoutExpired:
+                return dict({'status': 'fail', 'error': 'Program hangs'})
+
+            else:
+                try:
+                    print(json.loads(resp.stdout.decode('utf-8')))
+                    return json.loads(resp.stdout.decode('utf-8'))
+                except json.decoder.JSONDecodeError as e:
+                    print(e)
+                    return dict({'status': 'fail',
+                                 'error': [f"Malformed response received from handler: {resp.stdout.decode('utf-8')}",
+                                           f"ERROR: {resp.stderr.decode('utf-8')}"]})
 
     def is_num(s):
         try:
