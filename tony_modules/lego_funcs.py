@@ -10,6 +10,7 @@ import os
 import io
 import json
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 ROOTPATH = os.path.join(os.environ['TONYROOT'])   #Bot's root path
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
@@ -22,7 +23,7 @@ class LegoStore(JSONStore):
             self['reminders'] = {}
 
 
-async def post_parse(message, bot):
+async def parse_message(message, bot):
     cur_channel = bot.get_channel(message.channel.id)
     if 'ai' in re.findall(r'\bai\b',message.content.lower()):
         async with cur_channel.typing():
@@ -31,7 +32,7 @@ async def post_parse(message, bot):
             await cur_channel.send('Just Sandbox it...\nhttps://www.youtube.com/watch?v=i8r_yShOixM')
 
 
-async def parsereact(reaction, user, bot):
+async def parse_reaction(reaction, user, bot):
     emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
     emb.set_author(name=reaction.message.author.display_name + ':', icon_url=reaction.message.author.avatar_url)
 
@@ -54,7 +55,7 @@ async def parsereact(reaction, user, bot):
                             embed=emb)
 
 
-def setup(bot):
+def init(bot):
     storage = LegoStore()
 
 # AUXILIARY COMMANDS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -67,25 +68,44 @@ def setup(bot):
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-CA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7}'
         }
-        files = []
+        validsites = ["bandcamp.com", "soundcloud.com"]
 
-        async def get(sesh, url, headerData, maxNumTries=3):
+        async def get(sesh, url, headerData, parameters = {}, maxNumTries = 3):
             numTries = 0
             while (numTries < maxNumTries):
                 try:
-                    return sesh.get(url, headers=headerData)
+                    return sesh.get(url, params=parameters, headers=headerData)
                 except:
                     numTries += 1
             await ctx.send("Failed to get data")
-            return False
+            return
 
-        async def downloadAlbum(sesh, albumpage, headerdata): # {"album name": "", "album art": f, "files": []}
+        def parseName(filename):
+            return filename
+
+        async def soundcloud(sesh, page, headerdata):
+            songs = []
+            trackParams = {"client_id": "R05HJlT1Pq49aYbJl7VfKJ587r2blpL1"}
+            ids = set(re.findall(r'"id":[0-9]{5,}', page))
+            for id in ids:
+                trackURL = f"https://api.soundcloud.com/i1/tracks/{str(id)[5:]}/streams"
+                infoURL = f"https://api.soundcloud.com/tracks/{str(id)[5:]}?client_id=R05HJlT1Pq49aYbJl7VfKJ587r2blpL1"
+                try:
+                    mp3URL = await get(sesh, trackURL, headerdata, trackParams)
+                    if mp3URL and mp3URL.status_code == 200:
+                        mp3 = await get(sesh, mp3URL.json()["http_mp3_128_url"], headerdata)
+                        trackinfo = await get(sesh, infoURL, headerdata)
+                        songs.append({'title': f'{trackinfo.json()["title"]}.mp3', 'file': mp3.content})
+                except KeyError:
+                    continue
+            return songs
+
+        async def bandcamp(sesh, albumpage, headerdata): # {"album name": "", "album art": f, "files": []}
             infostart = albumpage.find('trackinfo: ') + len('trackinfo: ')
             infoend = albumpage.find('\n', infostart) - 1
             info = json.loads(albumpage[infostart:infoend])
 
-            imagestart = albumpage[
-                              albumpage.find('<link rel="image_src" href="') + len('<link rel="image_src" href="'):]
+            imagestart = albumpage.find('<link rel="image_src" href="') + len('<link rel="image_src" href="')
             imagelink = imagestart[:imagestart.find('">')]
 
             namestart = albumpage.find('<title>') + len('<title>')
@@ -106,12 +126,31 @@ def setup(bot):
             return {"name": albumname, "art": data.content, "songs": songs}
 
         for link in links:
-            albumpage = await get(sesh, link, headerdata)
-            album = await downloadAlbum(sesh, albumpage.content.decode('utf-8'), headerdata)
-            for song in album['songs']:
-                await ctx.send(f'{song["title"]}', file=discord.File(song['file'], song['title']))
-            await ctx.send(file=discord.File(album['art'], 'albumart.png'))
-            await ctx.send("All done")
+            plink = urlparse(link)
+            if not any(site in plink.netloc for site in validsites):
+                await ctx.send(f"Error: Invalid site, skipping...\nValid sites:{', '.join(validsites)}")
+                continue
+
+            page = await get(sesh, link, headerdata)
+
+            if 'bandcamp' in plink.netloc:
+                album = await bandcamp(sesh, page.content.decode('utf-8'), headerdata)
+                songs = album['songs']
+                await ctx.send(file=discord.File(album['art'], 'albumart.png'))
+
+            elif 'soundcloud' in plink.netloc:
+                songs = await soundcloud(sesh, page.content.decode('utf-8'), headerdata)
+
+            else:
+                continue
+
+            for song in songs:
+                try:
+                    await ctx.send(file=discord.File(song['file'], parseName(song['title'])))
+                except discord.errors.HTTPException:
+                    await ctx.send("Error, file too large to send...")
+
+        await ctx.send("All done")
 
     @bot.command()
     async def compile(ctx, mID, *input):
