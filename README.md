@@ -1,5 +1,5 @@
 # TSpark
-A Python-based discord bot; A collaborative project between myself, and @ehrenjn
+A Python-based discord bot; A collaborative project between myself, and [@ehrenjn](https://github.com/ehrenjn)
 
 ## Running The Bot
 
