@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 import os
 import json
-from tony_modules.wak_funcs import setup as wak_setup
+from tony_modules.wak_funcs import tenor_react, setup as wak_setup
 from tony_modules.lego_funcs import parse_message, parse_reaction, init as lego_init
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -42,6 +42,7 @@ async def on_message(message):  # Execute on message received
         await bot.process_commands(message)  # Process discord-style commands (i.e. !help)
         if message.author.id != bot.user.id:  # If the bot didn't write the message...
             await parse_message(message, bot)  # Apply any post-processing (i.e. triggering based on message content)
+            await tenor_react(message, bot)
 
 
 @bot.event
