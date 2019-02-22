@@ -88,29 +88,6 @@ def setup(bot):
         message = "Found {} messages".format(len(all_msgs)) #len apparently constant time for lists
         await ctx.send(message, file = discord.File(pseudo_file, filename = "dump.txt"))
 
-    @bot.event
-    async def on_message(mess): #sends reaction gifs randomly
-        if mess.author.id != bot.user.id and random.randint(1, 10) == 1:
-            endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5" #limit search to 5 gifs
-            api_key = "CNAW21Y2RSUB"
-            msg = mess.content
-            msg = re.sub('[.;,!]', '', msg) #remove punctuation from msg (EVEN IF MSG IS 100% PUNCTUATION EVERYTHING WORKS, this is because ''.split(' ') will become [''] which will then search tenor for nothing, which just gets back trending gifs or something so it's fine)
-            words = msg.split(' ')
-            num_search_terms = len(words)
-            if num_search_terms > 3: #max 3 search terms
-                num_search_terms = 3
-            words.sort(key = len, reverse = True) #sort words from longest to shortest
-            for num_words in range(num_search_terms, 0, -1):
-                search_words = words[0: num_words]
-                search_term = ' '.join(search_words)
-                res = requests.get(endpoint.format(search = search_term, api_key = api_key)).json()
-                results = res['results']
-                if len(results) > 0:
-                    gif = random.choice(results)
-                    await mess.channel.send(gif['url'])
-                    break
-                print("no results for '{}'".format(search_term))
-
     async def play_random_playable():
         playables = storage['playables']
         if len(playables) > 0:
@@ -139,4 +116,26 @@ def setup(bot):
             await play_random_playable()
             await asyncio.sleep(int((random.random()+0.2)*30*60)) #add 0.2 so minimal time isn't 0
     bot.loop.create_task(background())
-    
+
+
+async def tenor_react(mess, bot):
+    if mess.author.id != bot.user.id and random.randint(1, 1) == 1:
+        endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5" #limit search to 5 gifs
+        api_key = "CNAW21Y2RSUB"
+        msg = mess.content
+        msg = re.sub('[.;,!]', '', msg) #remove punctuation from msg (EVEN IF MSG IS 100% PUNCTUATION EVERYTHING WORKS, this is because ''.split(' ') will become [''] which will then search tenor for nothing, which just gets back trending gifs or something so it's fine)
+        words = msg.split(' ')
+        num_search_terms = len(words)
+        if num_search_terms > 3: #max 3 search terms
+            num_search_terms = 3
+        words.sort(key = len, reverse = True) #sort words from longest to shortest
+        for num_words in range(num_search_terms, 0, -1):
+            search_words = words[0: num_words]
+            search_term = ' '.join(search_words)
+            res = requests.get(endpoint.format(search = search_term, api_key = api_key)).json()
+            results = res['results']
+            if len(results) > 0:
+                gif = random.choice(results)
+                await mess.channel.send(gif['url'])
+                break
+            print("no results for '{}'".format(search_term))
