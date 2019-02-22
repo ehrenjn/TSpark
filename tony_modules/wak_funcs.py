@@ -10,6 +10,7 @@ from .util import JSONStore #relative import means this wak_funcs.py can only be
 import os
 from pathlib import Path
 import io
+import json
 
 ROOTPATH = os.environ['TONYROOT']
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'wak_storage.json')
