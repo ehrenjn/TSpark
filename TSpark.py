@@ -7,7 +7,7 @@ import traceback
 from discord.ext import commands
 import os
 import json
-from tony_modules.wak_funcs import tenor_reacts as wak_message, setup as wak_init
+from tony_modules.wak_funcs import tenor_react as wak_message, setup as wak_init
 from tony_modules.lego_funcs import parse_message as lego_message, parse_reaction as lego_reaction, init as lego_init
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
