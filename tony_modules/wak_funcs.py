@@ -10,10 +10,10 @@ from .util import JSONStore #relative import means this wak_funcs.py can only be
 import os
 from pathlib import Path
 import io
-from TSpark import CONFIG
 
-STORAGE_FILE = os.path.join(os.environ['TONYROOT'], 'storage', 'wak_storage.json')
-
+ROOTPATH = os.environ['TONYROOT']
+STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'wak_storage.json')
+CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))
 
 class WakStore(JSONStore):
     def __init__(self):
