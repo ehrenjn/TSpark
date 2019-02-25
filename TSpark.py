@@ -7,8 +7,8 @@ import traceback
 from discord.ext import commands
 import os
 import json
-from tony_modules.wak_funcs import setup as wak_setup
-from tony_modules.lego_funcs import parse_message, parse_reaction, init as lego_init
+from tony_modules.wak_funcs import setup as wak_init
+from tony_modules.lego_funcs import init as lego_init
 import traceback
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -34,7 +34,7 @@ class Tony (commands.Bot):
             await list(*args, **kwargs)
    
     async def on_message(self, message):
-        if message.guild.id == SERVER_ID and message.channel.id not in BANNED_CHANNELS:  # Ignore invalid msgs
+        if message.guild.id == CONFIG['SERVER_ID'] and message.channel.id not in CONFIG['BANNED_CHANNELS']:  # Ignore invalid msgs
             await bot.process_commands(message) #still have to process commands
             await self._handle_event(self.on_message, message)
  
