@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 ROOTPATH = os.path.join(os.environ['TONYROOT'])   #Bot's root path
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
-
+CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))
 
 class LegoStore(JSONStore):
     def __init__(self):
@@ -25,7 +25,7 @@ class LegoStore(JSONStore):
 
 async def parse_message(message, bot):
     cur_channel = bot.get_channel(message.channel.id)
-    if 'ai' in re.findall(r'\bai\b',message.content.lower()):
+    if 'ai' in re.findall(r'\bai\b', message.content.lower()):
         async with cur_channel.typing():
             await cur_channel.send('AI...?')
             await asyncio.sleep(random.randint(5, 25))
@@ -60,6 +60,20 @@ def init(bot):
 
 # AUXILIARY COMMANDS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     @bot.command()
+    async def regedit(ctx, key='', value=''):
+        if key in CONFIG:
+            if key in CONFIG['LOCKED']:
+                await ctx.send(f'Registry {key} is locked, cannot edit')
+            else:
+                if key in CONFIG['HIDDEN']:
+                    await ctx.send(f"Changed {key} to {value}")
+                else:
+                    await ctx.send(f"Changed {key} from {CONFIG[key]} to {value}")
+                CONFIG[key] = value
+        else:
+            await ctx.send(f'Invalid registry "{key}"\nValid registries are: {", ".join(CONFIG.keys())}')
+
+    @bot.command()
     async def download(ctx, *links):
         sesh = requests.Session()
         headerdata = {
@@ -70,7 +84,7 @@ def init(bot):
         }
         validsites = ["bandcamp.com", "soundcloud.com"]
 
-        async def get(sesh, url, headerData, parameters = {}, maxNumTries = 3):
+        async def get(sesh, url, headerData, parameters={}, maxNumTries = 3):
             numTries = 0
             while (numTries < maxNumTries):
                 try:
