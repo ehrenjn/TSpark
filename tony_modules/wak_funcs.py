@@ -10,9 +10,11 @@ from .util import JSONStore #relative import means this wak_funcs.py can only be
 import os
 from pathlib import Path
 import io
+import json
 
-STORAGE_FILE = os.path.join(os.environ['TONYROOT'], 'storage', 'wak_storage.json')
-
+ROOTPATH = os.environ['TONYROOT']
+STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'wak_storage.json')
+CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))
 
 class WakStore(JSONStore):
     def __init__(self):
@@ -120,7 +122,8 @@ def setup(bot):
 
     @bot.event(bot.on_message)
     async def tenor_react(mess):
-        if mess.author.id != bot.user.id and random.randint(1, 1) == 1:
+        roll = random.randint(1, CONFIG['TENOR_CHANCE'])
+        if mess.author.id != bot.user.id and roll == 1:
             endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5" #limit search to 5 gifs
             api_key = "CNAW21Y2RSUB"
             msg = mess.content

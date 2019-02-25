@@ -3,6 +3,7 @@
 # IMPORTS
 
 import discord
+import traceback
 from discord.ext import commands
 import os
 import json
@@ -14,11 +15,8 @@ import traceback
 # GLOBAL DEFINITIONS
 
 ROOTPATH = os.path.join(os.environ['TONYROOT'])  # Bot's root path
-VARS = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))  # Auxiliary global variables
+CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))  # Auxiliary global variables
 
-for key, value in VARS.items():  # Declares JSON keys as global variables
-    if key not in globals():
-        globals()[key] = value  # This will make your IDE complain about undeclared variables
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # BOT SETUP
@@ -66,8 +64,9 @@ class Tony (commands.Bot):
 
 bot = Tony(command_prefix='!', case_insensitive=False)  # Configure bot prefix
 bot.remove_command('help')  # Remove keyword "help" from reserved command list
-wak_setup(bot)  # Initialize auxiliary functions
+wak_init(bot)  # Initialize auxiliary functions
 lego_init(bot)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-bot.run(TOKEN)  # Start the bot
+
+bot.run(CONFIG['TOKEN'])  # Start the bot
