@@ -7,8 +7,9 @@ import traceback
 from discord.ext import commands
 import os
 import json
-from tony_modules.wak_funcs import tenor_react as wak_message, setup as wak_init
-from tony_modules.lego_funcs import parse_message as lego_message, parse_reaction as lego_reaction, init as lego_init
+from tony_modules.wak_funcs import setup as wak_init
+from tony_modules.lego_funcs import init as lego_init
+import traceback
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # GLOBAL DEFINITIONS
@@ -20,44 +21,52 @@ CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))  # Au
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # BOT SETUP
 
-bot = commands.Bot(command_prefix='!', case_insensitive=False)  # Configure bot prefix
+class Tony (commands.Bot):
+   
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._listeners = {}
+        
+ 
+    async def _handle_event(self, event, *args, **kwargs):
+        listeners = self._listeners.get(event, [])
+        for list in listeners:
+            await list(*args, **kwargs)
+   
+    async def on_message(self, message):
+        if message.guild.id == CONFIG['SERVER_ID'] and message.channel.id not in CONFIG['BANNED_CHANNELS']:  # Ignore invalid msgs
+            await bot.process_commands(message) #still have to process commands
+            await self._handle_event(self.on_message, message)
+ 
+    async def on_reaction_add(self, reaction, user):
+        await self._handle_event(self.on_reaction_add, reaction, user)
+ 
+    def event(self, event_type):
+        def registrar(listener):
+            listeners = self._listeners.get(event_type, [])
+            listeners.append(listener)
+            self._listeners[event_type] = listeners
+        return registrar
+
+ 
+    async def on_error(self, event, *args, **kwargs):
+        await bot.get_channel(548323764186775553).send(f'```{traceback.format_exc()}```')
+
+ 
+    async def on_ready(self):  # Execute on bot startup
+        await bot.wait_until_ready()
+        print('Bot up and running')
+        
+ 
+    async def help(self, ctx):
+        await ctx.send(f"```css\n{CONFIG['HELP_MSG']}```")
+        
+
+bot = Tony(command_prefix='!', case_insensitive=False)  # Configure bot prefix
 bot.remove_command('help')  # Remove keyword "help" from reserved command list
 wak_init(bot)  # Initialize auxiliary functions
 lego_init(bot)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# CORE UTILITY
 
-
-@bot.command()
-async def help(ctx):
-    await ctx.send(f"```css\n{CONFIG['HELP_MSG']}```")
-
-
-@bot.event
-async def on_message(message):  # Execute on message received
-    if message.guild.id == CONFIG['SERVER_ID'] and message.channel.id not in CONFIG['BANNED_CHANNELS']:
-        await bot.process_commands(message)  # Process discord-style commands (i.e. !help)
-        if message.author.id != bot.user.id:  # If the bot didn't write the message...
-            await lego_message(message, bot)  # Apply any post-processing (i.e. triggering based on message content)
-            await wak_message(message, bot)
-
-
-@bot.event
-async def on_reaction_add(reaction, user):  # Execute on reaction to message
-    await lego_reaction(reaction, user, bot)
-    #await wak_reaction(reaction, user, bot)
-
-
-@bot.event
-async def on_error(event, *args, **kwargs):
-    await bot.get_channel(548323764186775553).send(f'```{traceback.format_exc()}```')
-
-
-@bot.event 
-async def on_ready():  # Execute on bot startup
-    await bot.wait_until_ready()
-    print('Bot up and running')
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 bot.run(CONFIG['TOKEN'])  # Start the bot
