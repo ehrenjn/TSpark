@@ -49,6 +49,7 @@ def setup(bot):
 
     @bot.command()
     async def img(ctx, *args):
+        print('asdf')
         query = '+'.join(args) + '&source=lnms&tbm=isch'
         url = 'https://www.google.ca/search?q=' + query
         data = requests.get(url).content.decode(errors = 'ignore')
@@ -119,25 +120,26 @@ def setup(bot):
             await asyncio.sleep(int((random.random()+0.2)*30*60)) #add 0.2 so minimal time isn't 0
     bot.loop.create_task(background())
 
-
-async def tenor_react(mess, bot):
-    if mess.author.id != bot.user.id and random.randint(1, CONFIG['TENOR_CHANCE']) == 1:
-        endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5" #limit search to 5 gifs
-        api_key = "CNAW21Y2RSUB"
-        msg = mess.content
-        msg = re.sub('[.;,!]', '', msg) #remove punctuation from msg (EVEN IF MSG IS 100% PUNCTUATION EVERYTHING WORKS, this is because ''.split(' ') will become [''] which will then search tenor for nothing, which just gets back trending gifs or something so it's fine)
-        words = msg.split(' ')
-        num_search_terms = len(words)
-        if num_search_terms > 3: #max 3 search terms
-            num_search_terms = 3
-        words.sort(key = len, reverse = True) #sort words from longest to shortest
-        for num_words in range(num_search_terms, 0, -1):
-            search_words = words[0: num_words]
-            search_term = ' '.join(search_words)
-            res = requests.get(endpoint.format(search = search_term, api_key = api_key)).json()
-            results = res['results']
-            if len(results) > 0:
-                gif = random.choice(results)
-                await mess.channel.send(gif['url'])
-                break
-            print("no results for '{}'".format(search_term))
+    @bot.event(bot.on_message)
+    async def tenor_react(mess):
+        roll = random.randint(1, CONFIG['TENOR_CHANCE'])
+        if mess.author.id != bot.user.id and roll == 1:
+            endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5" #limit search to 5 gifs
+            api_key = "CNAW21Y2RSUB"
+            msg = mess.content
+            msg = re.sub('[.;,!]', '', msg) #remove punctuation from msg (EVEN IF MSG IS 100% PUNCTUATION EVERYTHING WORKS, this is because ''.split(' ') will become [''] which will then search tenor for nothing, which just gets back trending gifs or something so it's fine)
+            words = msg.split(' ')
+            num_search_terms = len(words)
+            if num_search_terms > 3: #max 3 search terms
+                num_search_terms = 3
+            words.sort(key = len, reverse = True) #sort words from longest to shortest
+            for num_words in range(num_search_terms, 0, -1):
+                search_words = words[0: num_words]
+                search_term = ' '.join(search_words)
+                res = requests.get(endpoint.format(search = search_term, api_key = api_key)).json()
+                results = res['results']
+                if len(results) > 0:
+                    gif = random.choice(results)
+                    await mess.channel.send(gif['url'])
+                    break
+                print("no results for '{}'".format(search_term))

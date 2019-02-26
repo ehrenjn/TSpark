@@ -23,42 +23,44 @@ class LegoStore(JSONStore):
             self['reminders'] = {}
 
 
-async def parse_message(message, bot):
-    cur_channel = bot.get_channel(message.channel.id)
-    if 'ai' in re.findall(r'\bai\b', message.content.lower()):
-        async with cur_channel.typing():
-            await cur_channel.send('AI...?')
-            await asyncio.sleep(random.randint(5, 25))
-            await cur_channel.send('Just Sandbox it...\nhttps://www.youtube.com/watch?v=i8r_yShOixM')
-
-
-async def parse_reaction(reaction, user, bot):
-    emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
-    emb.set_author(name=reaction.message.author.display_name + ':', icon_url=reaction.message.author.avatar_url)
-
-    try:
-        name = reaction.emoji.name
-    except AttributeError:
-        pass
-    else:
-        if reaction.message.attachments:  # If the original message has attachments, add them to the embed
-            emb.set_image(url=list(reaction.message.attachments)[0].url)
-
-        if name == 'downvote' and reaction.message.author.id != bot.user.id:
-            chnl = bot.get_channel(513822540464914432)
-            await chnl.send(f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
-                            embed=emb)
-
-        elif name == 'upvote' and reaction.message.author.id != bot.user.id:
-            chnl = bot.get_channel(376539985412620289)
-            await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
-                            embed=emb)
-
-
 def init(bot):
     storage = LegoStore()
 
 # AUXILIARY COMMANDS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    @bot.event(bot.on_message)
+    async def parse_message(message):
+        cur_channel = bot.get_channel(message.channel.id)
+        if 'ai' in re.findall(r'\bai\b', message.content.lower()):
+            async with cur_channel.typing():
+                await cur_channel.send('AI...?')
+                await asyncio.sleep(random.randint(5, 25))
+                await cur_channel.send('Just Sandbox it...\nhttps://www.youtube.com/watch?v=i8r_yShOixM')
+
+    @bot.event(bot.on_reaction_add)
+    async def parse_reaction(reaction, user):
+        emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
+        emb.set_author(name=reaction.message.author.display_name + ':', icon_url=reaction.message.author.avatar_url)
+
+        try:
+            name = reaction.emoji.name
+        except AttributeError:
+            pass
+        else:
+            if reaction.message.attachments:  # If the original message has attachments, add them to the embed
+                emb.set_image(url=list(reaction.message.attachments)[0].url)
+
+            if name == 'downvote' and reaction.message.author.id != bot.user.id:
+                chnl = bot.get_channel(513822540464914432)
+                await chnl.send(f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
+                                embed=emb)
+
+            elif name == 'upvote' and reaction.message.author.id != bot.user.id:
+                chnl = bot.get_channel(376539985412620289)
+                await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
+                                embed=emb)
+
+
     @bot.command()
     async def regedit(ctx, key='', value=''):
         if key in CONFIG:
