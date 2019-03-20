@@ -1,8 +1,9 @@
+import discord
+from discord.ext import commands
 import requests
 import random
 import re
 import subprocess
-import discord
 import asyncio
 from .util import \
     JSONStore  # relative import means this wak_funcs.py can only be used as part of the tony_modules package now
@@ -11,10 +12,15 @@ import io
 import json
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# GLOBAL DEFINITIONS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ROOTPATH = os.path.join(os.environ['TONYROOT'])   #Bot's root path
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
-CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 class LegoStore(JSONStore):
     def __init__(self):
@@ -23,22 +29,20 @@ class LegoStore(JSONStore):
             self['reminders'] = {}
 
 
-def init(bot):
-    storage = LegoStore()
+class LegoFuncs:
+    def __init__(self, bot):
+        self.bot = bot
 
-# AUXILIARY COMMANDS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    async def on_message(self, message, ):
+        if message.guild.id == self.bot.config['SERVER_ID'] and message.channel.id not in self.bot.config['BANNED_CHANNELS'] and message.author.id != self.bot.user.id:
+            cur_channel = self.bot.get_channel(message.channel.id)
+            if 'ai' in re.findall(r'\bai\b', message.content.lower()):
+                async with cur_channel.typing():
+                    await cur_channel.send('AI...?')
+                    await asyncio.sleep(random.randint(5, 25))
+                    await cur_channel.send('Just Sandbox it...\nhttps://www.youtube.com/watch?v=i8r_yShOixM')
 
-    @bot.event(bot.on_message)
-    async def parse_message(message):
-        cur_channel = bot.get_channel(message.channel.id)
-        if 'ai' in re.findall(r'\bai\b', message.content.lower()):
-            async with cur_channel.typing():
-                await cur_channel.send('AI...?')
-                await asyncio.sleep(random.randint(5, 25))
-                await cur_channel.send('Just Sandbox it...\nhttps://www.youtube.com/watch?v=i8r_yShOixM')
-
-    @bot.event(bot.on_reaction_add)
-    async def parse_reaction(reaction, user):
+    async def on_reaction_add(self, reaction, user):
         emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
         emb.set_author(name=reaction.message.author.display_name + ':', icon_url=reaction.message.author.avatar_url)
 
@@ -50,33 +54,74 @@ def init(bot):
             if reaction.message.attachments:  # If the original message has attachments, add them to the embed
                 emb.set_image(url=list(reaction.message.attachments)[0].url)
 
-            if name == 'downvote' and reaction.message.author.id != bot.user.id:
-                chnl = bot.get_channel(513822540464914432)
-                await chnl.send(f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
-                                embed=emb)
+            if name == 'downvote' and reaction.message.author.id != self.bot.user.id:
+                chnl = self.bot.get_channel(513822540464914432)
+                await chnl.send(
+                    f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
+                    embed=emb)
 
-            elif name == 'upvote' and reaction.message.author.id != bot.user.id:
-                chnl = bot.get_channel(376539985412620289)
+            elif name == 'upvote' and reaction.message.author.id != self.bot.user.id:
+                chnl = self.bot.get_channel(376539985412620289)
                 await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
                                 embed=emb)
 
+    @commands.command()
+    async def joke(self, ctx):  # Tell a joke using the official Chuck Norris Joke API©
+        resp = requests.get('https://api.chucknorris.io/jokes/random').json()  # Get the response in JSON
+        emb = discord.Embed(title=resp['value'])  # Prepare the embed
+        emb.set_author(name="chuck norris be like...", icon_url=resp['icon_url'].replace('\\', ''))  # Attach icon
+        await ctx.send(embed=emb)
 
-    @bot.command()
-    async def regedit(ctx, key='', value=''):
-        if key in CONFIG:
-            if key in CONFIG['LOCKED']:
+    @commands.command()
+    async def regedit(self, ctx, *args):
+        if len(args) == 0:
+            await ctx.send(f'Error: Must provide options or key')
+
+        elif '-l' in args:
+            if len(args) == 1:
+                await ctx.send(f'Valid registries are: {", ".join(self.bot.config.keys())}')
+            else:
+                key = args[args.index('-l') + 1]
+                if key not in self.bot.config['LOCKED']:
+                    await ctx.send(f'{key} is {self.bot.config[key]}')
+                else:
+                    await ctx.send(f'Registry {key} is locked. Cannot display value')
+
+        elif '-a' in args:
+            if len(args) == 3:
+                key = args[1]
+                value = args[2]
+
+                if key not in self.bot.config['LOCKED']:
+                        if isinstance(self.bot.config[key], list):
+                            if isinstance(self.bot.config[key][0], int) and is_num(value):
+                                value = is_num(value)
+                            self.bot.config[key].append(value)
+                            await ctx.send(f'Added {value} to registry {key}')
+                        else:
+                            await ctx.send(f'Registry must be of type list to add')
+                else:
+                    await ctx.send(f'Registry {key} is locked. Cannot add {value}')
+
+            else:
+                await ctx.send(f'Error: Must provide key to add to and value to add')
+
+        elif args[0] in self.bot.config:
+            key = args[0]
+            value = args[1]
+            if key in self.bot.config['LOCKED']:
                 await ctx.send(f'Registry {key} is locked, cannot edit')
             else:
-                if key in CONFIG['HIDDEN']:
-                    await ctx.send(f"Changed {key} to {value}")
-                else:
-                    await ctx.send(f"Changed {key} from {CONFIG[key]} to {value}")
-                CONFIG[key] = value
-        else:
-            await ctx.send(f'Invalid registry "{key}"\nValid registries are: {", ".join(CONFIG.keys())}')
+                if isinstance(self.bot.config[key], int) and is_num(value):
+                    value = is_num(value)
+                await ctx.send(f"Changed {key} from {self.bot.config[key]} to {value}")
+                self.bot.config[key] = value
 
-    @bot.command()
-    async def download(ctx, *links):
+        else:
+            await ctx.send(f'Invalid registry "{args[0]}"\nValid registries are: {", ".join(self.bot.config.keys())}')
+
+    @commands.command()
+    async def download(self, ctx, *links):
         sesh = requests.Session()
         headerdata = {
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/64.0.3282.140 Chrome/64.0.3282.140 Safari/537.36',
@@ -86,7 +131,9 @@ def init(bot):
         }
         validsites = ["bandcamp.com", "soundcloud.com"]
 
-        async def get(sesh, url, headerData, parameters={}, maxNumTries = 3):
+        async def get(sesh, url, headerData, parameters=None, maxNumTries = 3):
+            if parameters is None:
+                parameters = {}
             numTries = 0
             while (numTries < maxNumTries):
                 try:
@@ -95,9 +142,6 @@ def init(bot):
                     numTries += 1
             await ctx.send("Failed to get data")
             return
-
-        def parseName(filename):
-            return filename
 
         async def soundcloud(sesh, page, headerdata):
             songs = []
@@ -162,54 +206,28 @@ def init(bot):
 
             for song in songs:
                 try:
-                    await ctx.send(file=discord.File(song['file'], parseName(song['title'])))
+                    await ctx.send(file=discord.File(song['file'], song['title']))
                 except discord.errors.HTTPException:
                     await ctx.send("Error, file too large to send...")
 
         await ctx.send("All done")
 
-    @bot.command()
-    async def compile(ctx, mID, *input):
-        msg = await ctx.get_message(mID)
-        req = {}
-        if re.match(r'^```(.|\s)*```$', msg.content):
-            req['language'] = re.sub('```', '', re.match(r'^```.*', msg.content).group(0))
-            req['code'] = re.sub(r'```$', '', re.sub(r'^```.*', '', msg.content))
-            if input:
-                req['input'] = [list(input)]
-            response = await pyDE(req)
-
-            if response['status'] == 'fail':
-                await ctx.send("EPIC FAIL")
-                await ctx.send(json.dumps(response['error']))
-            if response['status'] == 'pass':
-                await ctx.send(f"Results: {json.dumps(response['output'])}")
-        else:
-            await ctx.send("Invalid message")
-
-    @bot.command()
-    async def joke(ctx):  # Tell a joke using the official Chuck Norris Joke API©
-        resp = requests.get('https://api.chucknorris.io/jokes/random').json()  # Get the response in JSON
-        emb = discord.Embed(title=resp['value'])  # Prepare the embed
-        emb.set_author(name="chuck norris be like...", icon_url=resp['icon_url'].replace('\\', ''))  # Attach icon
-        await ctx.send(embed=emb)
-
-    @bot.command()
-    async def roll(ctx):  # Outputs the message id of the message sent ("roll")
+    @commands.command()
+    async def roll(self, ctx):  # Outputs the message id of the message sent ("roll")
         await ctx.send(f"{ctx.author.display_name} rolled a {ctx.message.id}")
 
-    @bot.command()
-    async def nab(ctx, *cmds):  # Gets all messages between last two instances of messages with given reaction(s)
+    @commands.command()
+    async def nab(self, ctx, *cmds):  # Gets all messages between last two instances of messages with given reaction(s)
         #  DEFAULT VALUES
         cmds = list(cmds)
         emojis = []
         num = 1000
-        channel = bot.get_channel(ctx.channel.id)
+        channel = self.bot.get_channel(ctx.channel.id)
         FLAGS = ['-c', '-n']
         #  FLAG HANDLING
         for cmd in cmds:
             if cmd is '-c':  # Specify the channel to nab from
-                channel = bot.get_channel(cmd.pop(cmd.index('-c') + 1))
+                channel = self.bot.get_channel(cmd.pop(cmd.index('-c') + 1))
                 continue
 
             if cmd is '-n':  # Specify number of messages to look through
@@ -242,8 +260,8 @@ def init(bot):
 
         await channel.send(file=discord.File(io.BytesIO(msgs), filename='nab.txt'))
 
-    @bot.command()
-    async def search(ctx, *cmd):
+    @commands.command()
+    async def search(self, ctx, *cmd):
         cmd = list(cmd)
         users = []
         reactions = []
@@ -256,7 +274,7 @@ def init(bot):
                 if user.lower() == 'all':
                     users = ctx.guild.members
                 else:
-                    users.append(bot.get_user(int(re.sub('[<@>]', '', user))))
+                    users.append(self.bot.get_user(int(re.sub('[<@>]', '', user))))
                 cmd.remove('-u')
 
             if '-r' in cmd:
@@ -268,7 +286,7 @@ def init(bot):
                 if chan.lower() == 'all':
                     channels = ctx.guild.text_channels
                 else:
-                    channels.append(bot.get_channel(int(re.sub('[<#>]', '', chan))))
+                    channels.append(self.bot.get_channel(int(re.sub('[<#>]', '', chan))))
                 cmd.remove('-c')
 
             if '-n' in cmd:
@@ -305,20 +323,20 @@ def init(bot):
         except discord.HTTPException:
             await ctx.send('Error: Dump file too large')
 
-    @bot.command()
-    async def moji(ctx, opts = '-l', name = '', link = ''):
-        mojis = storage['mojis']
+    @commands.command()
+    async def moji(self, ctx, opts = '-l', name = '', link = ''):
+        mojis = self.storage['mojis']
         if opts == '-l':
-            await ctx.send('```Available mojis:\n' + '\n'.join(storage['mojis']) + '```')
+            await ctx.send('```Available mojis:\n' + '\n'.join(self.storage['mojis']) + '```')
 
         elif opts == '-a':
             mojis[name] = link
-            storage.update()
+            self.storage.update()
             await ctx.send(f"Moji {name} successfully added")
 
         elif opts == '-r':
             del mojis[name]
-            storage.update()
+            self.storage.update()
             await ctx.send(f"Moji {name} successfully removed")
 
         elif opts in mojis:
@@ -328,17 +346,17 @@ def init(bot):
             await ctx.send(f"Moji '{opts}' not found")
         await ctx.message.delete()
 
-    @bot.command()
-    async def reminder(ctx, *cmd):
+    @commands.command()
+    async def reminder(self, ctx, *cmd):
         cmd = list(cmd)
         rem_index = 1
         rem_date = datetime.now().replace(second=0, microsecond=0)
         if '-l' in cmd:
             printlist = 'Reminders:\n'
-            for x in storage['reminders']:
+            for x in self.storage['reminders']:
                 printlist += f"{x}:\n"
-                for y in storage['reminders'][x]:
-                    printlist += f"\t{y} : {str(storage['reminders'][x][y])}\n"
+                for y in self.storage['reminders'][x]:
+                    printlist += f"\t{y} : {str(self.storage['reminders'][x][y])}\n"
             await ctx.send(f"```{printlist}```")
             return
         if '-u' in cmd:
@@ -365,21 +383,21 @@ def init(bot):
         else:
             await ctx.send('Error: Must include time formatting')
 
-        for x in storage['reminders']:
-            if int(x) + 1 not in storage['reminders']:
+        for x in self.storage['reminders']:
+            if int(x) + 1 not in self.storage['reminders']:
                 rem_index = int(x) + 1
                 break
 
-        storage['reminders'][rem_index] = {}
-        storage['reminders'][rem_index]['user'] = rem_user
-        storage['reminders'][rem_index]['date'] = str(rem_date)
-        storage['reminders'][rem_index]['reminder'] = ' '.join(cmd)
-        storage['reminders'][rem_index]['channel'] = ctx.message.channel.id
-        storage.update()
+        self.storage['reminders'][rem_index] = {}
+        self.storage['reminders'][rem_index]['user'] = rem_user
+        self.storage['reminders'][rem_index]['date'] = str(rem_date)
+        self.storage['reminders'][rem_index]['reminder'] = ' '.join(cmd)
+        self.storage['reminders'][rem_index]['channel'] = ctx.message.channel.id
+        self.storage.update()
         await ctx.send(f"Reminder '{' '.join(cmd)}' added for {rem_date}")
 
-    @bot.command()
-    async def discloud(ctx, *cmd):
+    @commands.command()
+    async def discloud(self, ctx, *cmd):
         cmd = list(cmd)
         path = os.path.join(ROOTPATH, 'discloud')
         if '-l' in cmd:
@@ -418,65 +436,36 @@ def init(bot):
                 except IndexError:
                     await ctx.send('Error: Index not found')
 
-    async def check_reminder():
-        reminders = storage['reminders']
-        for x in list(reminders):
-            if str(datetime.now().replace(second=0, microsecond=0)) >= reminders[x]['date']:
-                await bot.get_channel(reminders[x]['channel']).send(reminders[x]['user'] + ' - ' + reminders[x]['reminder'])
-                del reminders[x]
-                storage.update()
 
-    async def pyDE(req, mem=16, time=10):
+async def check_reminder(bot):
+    reminders = bot.lstorage['reminders']
+    for x in list(reminders):
+        if str(datetime.now().replace(second=0, microsecond=0)) >= reminders[x]['date']:
+            await bot.get_channel(reminders[x]['channel']).send(reminders[x]['user'] + ' - ' + reminders[x]['reminder'])
+            del reminders[x]
+            bot.storage.update()
 
-        if mem > 16 or not isinstance(mem, int):
-            mem = 16
 
-        if time > 10 or not isinstance(time, int):
-            time = 10
+def is_num(s):
+    try:
+        int(s)
+    except ValueError:
+        return False
+    else:
+        return int(s)
 
-        req['timeout'] = time
-        print(json.dumps(req))
-        if int(subprocess.run(['docker ps | grep \'pyde\' | wc -l'], stdout=subprocess.PIPE, shell=True).stdout.decode(
-                'utf-8')) > 5:
-            return dict({'status': 'fail', 'error': 'Error: Too many active containers'})
 
-        else:
-            try:
-                resp = subprocess.run(['bash',
-                                       './init.sh',
-                                       f'{json.dumps(req)}'],
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE,
-                                      timeout=time)
-                print(resp.stdout)
-                print(resp.stderr)
-            except subprocess.TimeoutExpired:
-                return dict({'status': 'fail', 'error': 'Program hangs'})
+async def lego_background(bot):
+    print('lego background process started')
+    while bot.ws is None:
+        await asyncio.sleep(1)
+    while True:
+        await check_reminder(bot)
+        await asyncio.sleep(15)
 
-            else:
-                try:
-                    print(json.loads(resp.stdout.decode('utf-8')))
-                    return json.loads(resp.stdout.decode('utf-8'))
-                except json.decoder.JSONDecodeError as e:
-                    print(e)
-                    return dict({'status': 'fail',
-                                 'error': [f"Malformed response received from handler: {resp.stdout.decode('utf-8')}",
-                                           f"ERROR: {resp.stderr.decode('utf-8')}"]})
 
-    def is_num(s):
-        try:
-            int(s)
-        except ValueError:
-            return False
-        finally:
-            return int(s)
+def setup(bot):
+    bot.add_cog(LegoFuncs(bot))
+    bot.lstorage = LegoStore()
+    bot.loop.create_task(lego_background(bot))
 
-    async def lego_background():
-        print('lego background process started')
-        while bot.ws is None:
-            await asyncio.sleep(1)
-        while True:
-            await check_reminder()
-            await asyncio.sleep(15)
-
-    bot.loop.create_task(lego_background())
