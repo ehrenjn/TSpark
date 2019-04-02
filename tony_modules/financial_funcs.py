@@ -1,6 +1,8 @@
 import re
 from pydot import Dot, Edge
 from collections import namedtuple
+from discord.ext import commands
+import discord
 
 
 class Debt:
@@ -53,15 +55,16 @@ def plot_debts(all_debts, file_path):
     graph = Dot()
     for debt in all_debts:
         amt_str = '$' + str(round(debt.amount, 2)) #round to cents when we display everything
-        new_edge = Edge(debt.owed_to, debt.owed_by, label = amt_str)
+        new_edge = Edge(debt.owed_by, debt.owed_to, label = amt_str)
         graph.add_edge(new_edge)
     graph.write_png(file_path)
 
 
 ################################### Message parsing #############################################
  
-DEBT_QUERY = re.compile(r'(.+)owes?(.+)')
-MONEY_QUERY = re.compile(r'\$[\d.]+|[\d.]+\$|[\d.]+ dollars|[\d.]+ bucks')
+DEBT_QUERY = re.compile(r'(.+)owes?(.+)') #to find IOUs
+MONEY_QUERY = re.compile(r'\$[\d.]+|[\d.]+\$|[\d.]+ dollars|[\d.]+ bucks') #to find monetary values
+CROSSED_OUT_QUERY = re.compile(r'~+.*?~+') #to find crossed out text 
 NAMES = {
     'ehren': 'Ehren',
     'wak': 'Ehren',
@@ -83,12 +86,13 @@ def parse_message(message):
     name_query_string = r'|'.join(names) + r'|\bi\b|\bme\b' #query to find all names, also add in matches for "me" and "I"
     name_query = re.compile(name_query_string)
     user_id = "<@{}>".format(message.author.id)
-    names['i'] = names[message.author.user] #so we can convert back from "I" and "me" later
-    names['me'] = names[message.user]
-    message = message.text.lower()
+    names['i'] = names[user_id] #so we can convert back from "I" and "me" later
+    names['me'] = names[user_id]
+    message = message.content.lower()
+    message = CROSSED_OUT_QUERY.sub('', message) #remove crossed out text (so crossed out ious are ignored)
     parsed_debts = []
     for msg in message.split('\n'):
-        debt_strs = DEBT_QUERY.search(msg)
+        debt_strs = DEBT_QUERY.search(msg) #find all ious
         if debt_strs is not None:
             debt_holders = debt_strs.group(1)
             debt_holders = name_query.findall(debt_holders) #people who owe money
@@ -108,6 +112,15 @@ def parse_message(message):
 
 ################################### Discord Integration #############################################
 
+IOU_CHANNEL_ID = 391842582948216833
+GRAPH_PATH = "iou_graph.png"
+
+async def plot_and_send(ctx, debts, additional_text):
+    plot_debts(debts, GRAPH_PATH)
+    graph = discord.File(GRAPH_PATH, filename = "ious.png")
+    await ctx.send(additional_text, file = graph) #technically "dangerous" (since another call to !iou could change the file before it's sent) but it doesn't really matter for this command 
+
+	
 class Financials:
 
     def __init__(self, bot):
@@ -115,58 +128,64 @@ class Financials:
     
     @commands.command()
     async def iou(self, ctx, *args):
-        all_ious = GET EM
-        all_debts = []
-        for iou in all_ious:
-            parsed_ious = parse_message(iou)
-            for debt in parsed_ious:
-                all_debts.apped(debt)
-                if 'quiet' not in args:
-                    await ctx.send(debt)
-        plot_debts(all_debts, 'debt_plot.png')
-        await ctx.send()
+        quiet = "quiet" in args
+        if not quiet:
+            await ctx.send("Parsing IOU channel... (use `!iou quiet` to hide IOU parsing output)")
+        all_debts = await self.parse_discord_debts(ctx, quiet)
+        await plot_and_send(ctx, all_debts, "Current IOUs visualized:")
         original_sum = sum_debts(all_debts)
-        debts = reduce(all_debts)
-        plot_debts(all_debts, 'C:\\Users\\Wakydawgster\\Desktop\\delpls2.png')
-        final_sum = sum_debts(debts)
-        if final_sum == original_sum:
-            print("Check: Successful:white_check_mark: (Reduced debt sums equal original debt sums)")
+        all_debts = reduce(all_debts)
+        await plot_and_send(ctx, all_debts, "Reduced IOU graph:")
+        final_sum = sum_debts(all_debts)
+        if final_sum == original_sum: #check to see if reduced graph is valid
+            await ctx.send("Check: Successful :white_check_mark: (Reduced debt sums equal original debt sums)")
         else:
-            print("ERROR: REDUCED DEBT SUMS DON'T EQUAL ORIGINAL DEBT SUMS! (might just be floating point math error but I thought I got rid of all those)")
-            print(f"original sums: {original_sum}")
-            print(f"reduced sums: {final_sum}")
+            await ctx.send("**ERROR: REDUCED DEBT SUMS DON'T EQUAL ORIGINAL DEBT SUMS!** (might just be floating point math error but I thought I got rid of all those)")
+            await ctx.send(f"original sums: {original_sum}")
+            await ctx.send(f"reduced sums: {final_sum}")
         balances_string = ''.join(f"\n    {name}: {balance}" for name, balance in final_sum.items())
-        print("Balances:" + balances_string)
-        total_debt_string = str(sum(balance for balance in final_sum.values() if balance > 0))
-        print("Total debt: " + total_debt_string)
-            
+        await ctx.send("Balances:" + balances_string)
+        total_debt = sum(balance for balance in final_sum.values() if balance > 0)
+        await ctx.send(f"Total debt: **${total_debt}**")
+    
+    async def parse_discord_debts(self, ctx, quiet = False):
+        iou_channel = self.bot.get_channel(IOU_CHANNEL_ID)
+        all_debts = []
+        async for iou in iou_channel.history(): 
+            parsed_ious = parse_message(iou)
+            all_debts += parsed_ious
+            if not quiet: #send parsing information back to discord
+                parse_str = f"```Original -> {iou.author.display_name}: {iou.content}"
+                parsed_iou_strs = [str(i) for i in parsed_ious]
+                parse_str += f"\nParsed -> {parsed_iou_strs}```"
+                await ctx.send(parse_str)
+        return all_debts
+                        
 
 def setup(bot):
-    bot.add_cog(WakFuncs(bot))
-    bot.wstorage = WakStore()
-    bot.loop.create_task(background(bot))
+    bot.add_cog(Financials(bot))
 
 
 ################################### Testing #############################################
 
 if __name__ == "__main__":
     debts = [
-        Debt('Ehren', 'Sam', 7.5),
-        Debt('Ehren', 'Daniel', 6),
-        Debt('Ehren', 'Julien', 15),
-        Debt('Ehren', 'Julien', 0.1),
-        Debt('Ehren', 'Aidan', 1.5),
-        Debt('Daniel', 'Aidan', 9),
-        Debt('Daniel', 'Julien', 15),
-        Debt('Aidan', 'Julien', 20),
-        Debt('Aidan', 'Sam', 7.5),
-        Debt('Julien', 'Sam', 7.5),
-        Debt('Sam', 'Ehren', 12.5),
-        Debt('Sam', 'Ehren', 6.45),
-        Debt('Sam', 'Ehren', 20),
-        Debt('Julien', 'Ehren', 14),
-        Debt('Sam', 'Ehren', 14),
-        Debt('Aidan', 'Ehren', 14)
+        Debt('Sam', 'Ehren', 7.5),
+        Debt('Daniel', 'Ehren', 6),
+        Debt('Julien', 'Ehren', 15),
+        Debt('Julien', 'Ehren', 0.1),
+        Debt('Aidan', 'Ehren', 1.5),
+        Debt('Aidan', 'Daniel', 9),
+        Debt('Julien', 'Daniel', 15),
+        Debt('Julien', 'Aidan', 20),
+        Debt('Sam', 'Aidan', 7.5),
+        Debt('Sam', 'Julien', 7.5),
+        Debt('Ehren', 'Sam', 12.5),
+        Debt('Ehren', 'Sam', 6.45),
+        Debt('Ehren', 'Sam', 20),
+        Debt('Ehren', 'Julien', 14),
+        Debt('Ehren', 'Sam', 14),
+        Debt('Ehren', 'Aidan', 14)
     ]
     plot_debts(debts, 'C:\\Users\\Wakydawgster\\Desktop\\delpls.png')
     original_sum = sum_debts(debts)
