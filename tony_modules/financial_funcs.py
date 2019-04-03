@@ -11,10 +11,30 @@ class Debt:
         self.owed_to = owed_to
         self.owed_by = owed_by
         self.amount = amount
+        self.normalize()
 
     def __str__(self):
         return f"{self.owed_by} owes {self.owed_to} ${self.amount}"
 
+    def __add__(self, other_debt):
+        if {other_debt.owed_to, other_debt.owed_by} != {self.owed_to, self.owed_by}:
+            raise ValueError("Only Debts between the same parties can be added together")
+        debt_sum = Debt(self.owed_to, self.owed_by, other_debt.amount)
+        if other_debt.owed_to == self.owed_by: #if owed to and owed by are reversed, then other_debt's amount is actually negative relative to self's amount
+            debt_sum.amount = -debt_sum.amount
+        debt_sum.amount += self.amount
+        debt_sum.normalize()
+        debt_sum.amount = round(debt_sum.amount, 5) #avoid float errors
+        return debt_sum
+
+    def normalize(self):
+        "if amount is negative: swap owed_to and owed_by and make amount positive"
+        if self.amount < 0:
+            temp_owed_to = self.owed_to
+            self.owed_to = self.owed_by
+            self.owed_by = temp_owed_to
+            self.amount = -self.amount
+        
 
 ################################### Debt Collection Operations #############################################
   
@@ -41,6 +61,17 @@ def reduce(debts):
         remaining_credit = round(credit_payment.amount - last_transaction.amount, 2)
         credit[0] = Payment(credit_payment.person, remaining_credit)
     return new_debts
+
+#similar to reduce, but combines vertices that are to the same nodes
+def simplify(debts):
+    simplified = {}
+    for d in debts:
+        parties = frozenset((d.owed_to, d.owed_by)) #use frozenset so I can use it as keys for simplified
+        default_debt = Debt(d.owed_to, d.owed_by, 0)
+        summed_debt = simplified.get(parties, default_debt)
+        summed_debt += d
+        simplified[parties] = summed_debt
+    return list(simplified.values())
 
 def sum_debts(debts):
     totals = {}
@@ -134,14 +165,18 @@ class Financials:
         all_debts = await self.parse_discord_debts(ctx, quiet)
         await plot_and_send(ctx, all_debts, "Current IOUs visualized:")
         original_sum = sum_debts(all_debts)
+        simplified_debts = simplify(all_debts)
+        await plot_and_send(ctx, simplified_debts, "Simplified IOU graph:")
+        simplified_sum = sum_debts(simplified_debts)
         all_debts = reduce(all_debts)
-        await plot_and_send(ctx, all_debts, "Reduced IOU graph:")
+        await plot_and_send(ctx, all_debts, "Fully reduced IOU graph:")
         final_sum = sum_debts(all_debts)
-        if final_sum == original_sum: #check to see if reduced graph is valid
-            await ctx.send("Check: Successful :white_check_mark: (Reduced debt sums equal original debt sums)")
+        if final_sum == original_sum and simplified_sum == original_sum: #check to see if reduced graph is valid
+            await ctx.send("Check: Successful :white_check_mark: (reduced/simplified debt sums equal original debt sums)")
         else:
             await ctx.send("**ERROR: REDUCED DEBT SUMS DON'T EQUAL ORIGINAL DEBT SUMS!** (might just be floating point math error but I thought I got rid of all those)")
             await ctx.send(f"original sums: {original_sum}")
+            await ctx.send(f"simplified sums: {simplified_sum}")
             await ctx.send(f"reduced sums: {final_sum}")
         balances_string = ''.join(f"\n    {name}: {balance}" for name, balance in final_sum.items())
         await ctx.send("Balances:" + balances_string)
