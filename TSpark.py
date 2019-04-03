@@ -18,8 +18,11 @@ from tony_modules.util import JSONStore
 ROOTPATH = os.path.join(os.environ['TONYROOT'])  # Bot's root path
 # CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))  # Auxiliary global variables
 # CONFIG = JSONStore('storage/config.json')
-MODULES = ['tony_modules.lego_funcs',
-           'tony_modules.wak_funcs']
+MODULES = [
+    'tony_modules.lego_funcs',
+    'tony_modules.wak_funcs',
+    'tony_modules.financial_funcs'
+]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOT SETUP
