@@ -1,4 +1,5 @@
 import re
+import io
 from pydot import Dot, Edge
 from collections import namedtuple
 from discord.ext import commands
@@ -82,13 +83,13 @@ def sum_debts(debts):
         totals[d.owed_to] = round(credit + d.amount, 5)
     return totals
 
-def plot_debts(all_debts, file_path):
+def plot_debts(all_debts):
     graph = Dot()
     for debt in all_debts:
         amt_str = '$' + str(round(debt.amount, 2)) #round to cents when we display everything
         new_edge = Edge(debt.owed_by, debt.owed_to, label = amt_str)
         graph.add_edge(new_edge)
-    graph.write_png(file_path)
+    return graph.create_png()
 
 
 ################################### Message parsing #############################################
@@ -144,11 +145,10 @@ def parse_message(message):
 ################################### Discord Integration #############################################
 
 IOU_CHANNEL_ID = 391842582948216833
-GRAPH_PATH = "iou_graph.png"
 
 async def plot_and_send(ctx, debts, additional_text):
-    plot_debts(debts, GRAPH_PATH)
-    graph = discord.File(GRAPH_PATH, filename = "ious.png")
+    graph = plot_debts(debts) 
+    graph = discord.File(io.BytesIO(graph), filename = "ious.png")
     await ctx.send(additional_text, file = graph) #technically "dangerous" (since another call to !iou could change the file before it's sent) but it doesn't really matter for this command 
 
 	
