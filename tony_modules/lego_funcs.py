@@ -3,9 +3,8 @@ from discord.ext import commands
 import requests
 import random
 import re
-import subprocess
 import asyncio
-from .util import \
+from tony_modules.util import \
     JSONStore  # relative import means this wak_funcs.py can only be used as part of the tony_modules package now
 import os
 import io
@@ -30,12 +29,20 @@ class LegoStore(JSONStore):
 
 
 class LegoFuncs:
-    def __init__(self, bot):
+    def __init__(self, bot, store):
         self.bot = bot
+        self.storage = store
 
     async def on_message(self, message, ):
         if message.guild.id == self.bot.config['SERVER_ID'] and message.channel.id not in self.bot.config['BANNED_CHANNELS'] and message.author.id != self.bot.user.id:
             cur_channel = self.bot.get_channel(message.channel.id)
+
+            if message.channel.id == self.bot.config['VIDEO_ID'] and "http" in message.content:
+                await message.add_reaction("👀")
+
+            elif message.channel.id == self.bot.config['MUSIC_ID'] and "http" in message.content:
+                await message.add_reaction("👂")
+
             if 'ai' in re.findall(r'\bai\b', message.content.lower()):
                 async with cur_channel.typing():
                     await cur_channel.send('AI...?')
@@ -69,7 +76,7 @@ class LegoFuncs:
     async def joke(self, ctx):  # Tell a joke using the official Chuck Norris Joke API©
         resp = requests.get('https://api.chucknorris.io/jokes/random').json()  # Get the response in JSON
         emb = discord.Embed(title=resp['value'])  # Prepare the embed
-        emb.set_author(name="chuck norris be like...", icon_url=resp['icon_url'].replace('\\', ''))  # Attach icon
+        emb.set_author(name='', icon_url=resp['icon_url'].replace('\\', ''))  # Attach icon
         await ctx.send(embed=emb)
 
     @commands.command()
@@ -437,13 +444,13 @@ class LegoFuncs:
                     await ctx.send('Error: Index not found')
 
 
-async def check_reminder(bot):
-    reminders = bot.lstorage['reminders']
+async def check_reminder(bot, storage):
+    reminders = storage['reminders']
     for x in list(reminders):
         if str(datetime.now().replace(second=0, microsecond=0)) >= reminders[x]['date']:
             await bot.get_channel(reminders[x]['channel']).send(reminders[x]['user'] + ' - ' + reminders[x]['reminder'])
             del reminders[x]
-            bot.storage.update()
+            storage.update()
 
 
 def is_num(s):
@@ -455,17 +462,17 @@ def is_num(s):
         return int(s)
 
 
-async def lego_background(bot):
+async def lego_background(bot, storage):
     print('lego background process started')
     while bot.ws is None:
         await asyncio.sleep(1)
     while True:
-        await check_reminder(bot)
+        await check_reminder(bot, storage)
         await asyncio.sleep(15)
 
 
 def setup(bot):
-    bot.add_cog(LegoFuncs(bot))
-    bot.lstorage = LegoStore()
-    bot.loop.create_task(lego_background(bot))
+    storage = LegoStore()
+    bot.add_cog(LegoFuncs(bot, storage))
+    bot.loop.create_task(lego_background(bot, storage))
 
