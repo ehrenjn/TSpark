@@ -46,8 +46,8 @@ class LegoFuncs:
             if 'ai' in re.findall(r'\bai\b', message.content.lower()):
                 async with cur_channel.typing():
                     await cur_channel.send('AI...?')
-                    await asyncio.sleep(random.randint(5, 25))
-                    await cur_channel.send('Just Sandbox it...\nhttps://www.youtube.com/watch?v=i8r_yShOixM')
+                    await asyncio.sleep(random.randint(30, 50))
+                    await cur_channel.send('Just uhhhh...\nhttps://www.youtube.com/watch?v=fUkq2sArNl0&t=57s')
 
     async def on_reaction_add(self, reaction, user):
         emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
