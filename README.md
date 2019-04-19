@@ -92,7 +92,7 @@ A Python-based discord bot; A collaborative project between myself, and [@ehrenj
 #### !iou \<quiet> — Prints information about debts owed by server users specified in the #iou channel
 * if the optional "quiet" parameter is passed then debt parsing information will not be printed
 * to be successfully parsed, debts (hereafter called "debt statements") in the iou channel must:
-	* match the regular expression ".+?owes?.\*?(?:$\d|\d$|\d bucks|\d dollars).\*?"
+	* match the regular expression ".+?owes?.\*?(?:\$\d|\d\$|\d bucks|\d dollars).\*?"
 	* contain the names of server users on either side of "owes?"
 * multiple debt holders can be specified in a single debt statement
 	* ie "noid and lego owe wak $35" will create 35 dollar debts for both noid and lego that are both owed to wak
