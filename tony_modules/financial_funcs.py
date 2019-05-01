@@ -81,6 +81,7 @@ def sum_debts(debts):
         totals[d.owed_by] = round(debt - d.amount, 5) #round to 5 digits because floating point errors are ugly but we wanna be precise still
         credit = totals.get(d.owed_to, 0)
         totals[d.owed_to] = round(credit + d.amount, 5)
+    totals = {name: tot for name, tot in totals.items() if tot != 0} #get rid of totals that equal 0
     return totals
 
 def plot_debts(all_debts):
