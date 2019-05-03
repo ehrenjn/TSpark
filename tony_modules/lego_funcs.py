@@ -74,7 +74,7 @@ class LegoFuncs:
                 
                
     @commands.command()
-    async def pyde(ctx, *args):
+    async def pyde(self, ctx, *args):
         request = {}
         if '-m' in args:
             try:
@@ -107,7 +107,7 @@ class LegoFuncs:
                 await ctx.send(f"Error: No {key} value provided")
                 return
 
-        response = requests.post(self.bot.config['PYDE_IP'], '', request)
+        response = requests.post(self.bot.config['PYDE_URL'], '', request)
 
         rJSON = response.json()
         rString = f"**Exit Status:** {rJSON['status']}"
