@@ -71,6 +71,70 @@ class LegoFuncs:
                 chnl = self.bot.get_channel(376539985412620289)
                 await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
                                 embed=emb)
+                
+               
+    @commands.command()
+    async def pyde(ctx, *args):
+        request = {}
+        if '-m' in args:
+            try:
+                msg = await ctx.channel.fetch_message(args[args.index('-m') + 1])
+                msg = msg.content
+            except discord.errors.NotFound:
+                await ctx.send("Error: Message not found")
+                return
+            else:
+                if re.match(r"^```[a-zA-Z]+", msg):
+                    request['language'] = msg.split('\n')[0].replace('`', '')
+                    msg = msg[msg.find('\n')+1:msg.rfind('\n')]
+                request['code'] = msg
+
+        if '-l' in args:
+            request['language'] = args[args.index('-l') + 1]
+
+        if '-c' in args:
+            request['code'] = args[args.index('-c') + 1]
+
+        if '-i' in args:
+            try:
+                request['input'] = json.loads(args[args.index('-i') + 1])
+            except json.decoder.JSONDecodeError:
+                await ctx.send("Error: Input must be valid JSON string")
+                return
+
+        for key in ('code', 'language'):
+            if key not in request.keys() or not request[key]:
+                await ctx.send(f"Error: No {key} value provided")
+                return
+
+        response = requests.post(self.bot.config['PYDE_IP'], '', request)
+
+        rJSON = response.json()
+        rString = f"**Exit Status:** {rJSON['status']}"
+
+        if rJSON['status'] == 0:
+            color = 65280
+        else:
+            color = 16711680
+
+        if 'input' in request.keys():
+            rString += "\n**Input:**"
+            for val in request['input']:
+                rString += f"\n\tCase {request['input'].index(val) + 1}:\n\t\t{val}"
+
+        if 'output' in rJSON.keys():
+            rString += "\n**Output:**"
+            for val in rJSON['output']:
+                rString += f"\n\tCase {rJSON['output'].index(val) + 1}:\n\t\t{val}"
+
+        if 'error' in rJSON.keys():
+            rString += "\n**Errors:**\n" + ' '.join(rJSON['error'])
+
+        await ctx.send(embed=discord.Embed(
+            title=f"PyDE Compilation Results",
+            description=rString,
+            color=color
+        ))
 
     @commands.command()
     async def joke(self, ctx):  # Tell a joke using the official Chuck Norris Joke API©
