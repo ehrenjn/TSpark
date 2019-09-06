@@ -11,12 +11,14 @@ import io
 import json
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GLOBAL DEFINITIONS
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-ROOTPATH = os.path.join(os.environ['TONYROOT'])   #Bot's root path
+ROOTPATH = os.path.join('/home/nut/PycharmProjects/TonyTest/')  # Bot's root path
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -28,13 +30,15 @@ class LegoStore(JSONStore):
             self['reminders'] = {}
 
 
-class LegoFuncs:
+class LegoFuncs(commands.Cog):
     def __init__(self, bot, store):
         self.bot = bot
         self.storage = store
 
+    @commands.Cog.listener()
     async def on_message(self, message, ):
-        if message.guild.id == self.bot.config['SERVER_ID'] and message.channel.id not in self.bot.config['BANNED_CHANNELS'] and message.author.id != self.bot.user.id:
+        if message.guild.id == self.bot.config['SERVER_ID'] and message.channel.id not in self.bot.config[
+            'BANNED_CHANNELS'] and message.author.id != self.bot.user.id:
             cur_channel = self.bot.get_channel(message.channel.id)
 
             if message.channel.id == self.bot.config['VIDEO_ID'] and "http" in message.content:
@@ -49,6 +53,7 @@ class LegoFuncs:
                     await asyncio.sleep(random.randint(30, 50))
                     await cur_channel.send('Just uhhhh...\nhttps://www.youtube.com/watch?v=fUkq2sArNl0&t=57s')
 
+    @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
         emb.set_author(name=reaction.message.author.display_name + ':', icon_url=reaction.message.author.avatar_url)
@@ -71,8 +76,22 @@ class LegoFuncs:
                 chnl = self.bot.get_channel(376539985412620289)
                 await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
                                 embed=emb)
-                
-               
+
+    @commands.command()
+    async def define(self, ctx, *args):
+        if '-n' in args:
+            limit = args[args.index('-n') + 1]
+        else:
+            limit = 2
+        word = args[:-1]
+        url = f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key=830bac04-d6b1-4ed1-bc34-94352558aabb"
+        response = requests.get(url)
+        if not response: # Empty
+            await ctx.send(f"Error: {word} could not be defined")
+        else:
+            JSON = response.json()[0]
+            await ctx.send(JSON["def"])
+
     @commands.command()
     async def pyde(self, ctx, *args):
         request = {}
@@ -84,9 +103,9 @@ class LegoFuncs:
                 await ctx.send("Error: Message not found")
                 return
             else:
-                if re.match(r"^```[a-zA-Z]+", msg):
-                    request['language'] = msg.split('\n')[0].replace('`', '')
-                    msg = msg[msg.find('\n')+1:msg.rfind('\n')]
+                if re.match(r"^```[a-zA-Z0-9]+", msg): # Language included
+                    request['language'] = msg.split('\n')[0].replace('```', '')
+                    msg = msg[len(request['language']) + 3:-3]
                 request['code'] = msg
 
         if '-l' in args:
@@ -107,7 +126,7 @@ class LegoFuncs:
                 await ctx.send(f"Error: No {key} value provided")
                 return
 
-        response = requests.post(self.bot.config['PYDE_URL'], '', request)
+        response = requests.post(self.bot.config['PYDE_IP'], '', request)
 
         rJSON = response.json()
         rString = f"**Exit Status:** {rJSON['status']}"
@@ -119,22 +138,31 @@ class LegoFuncs:
 
         if 'input' in request.keys():
             rString += "\n**Input:**"
-            for val in request['input']:
-                rString += f"\n\tCase {request['input'].index(val) + 1}:\n\t\t{val}"
+            for case in request['input']:
+                rString += f"\n\tCase {request['input'].index(case + 1)}"
+                rString += '\n\t\t'.join(case)
 
         if 'output' in rJSON.keys():
             rString += "\n**Output:**"
-            for val in rJSON['output']:
-                rString += f"\n\tCase {rJSON['output'].index(val) + 1}:\n\t\t{val}"
+            for case in rJSON['output']:
+                rString += f"\n\tCase {rJSON['output'].index(case) + 1}:"
+                rString += '\n\t\t'.join(case)
 
         if 'error' in rJSON.keys():
             rString += "\n**Errors:**\n" + ' '.join(rJSON['error'])
 
-        await ctx.send(embed=discord.Embed(
-            title=f"PyDE Compilation Results",
-            description=rString,
-            color=color
-        ))
+        if '-f' in args:
+            await ctx.send(content="Here's your results, sir",
+                           file=discord.File(io.BytesIO(rString.encode()),
+                                             filename="results.txt")
+                           )
+        else:
+            await ctx.send(embed=discord.Embed(
+                title=f"PyDE Compilation Results",
+                description=rString,
+                color=color
+            ))
+
 
     @commands.command()
     async def joke(self, ctx):  # Tell a joke using the official Chuck Norris Joke API©
@@ -164,13 +192,13 @@ class LegoFuncs:
                 value = args[2]
 
                 if key not in self.bot.config['LOCKED']:
-                        if isinstance(self.bot.config[key], list):
-                            if isinstance(self.bot.config[key][0], int) and is_num(value):
-                                value = is_num(value)
-                            self.bot.config[key].append(value)
-                            await ctx.send(f'Added {value} to registry {key}')
-                        else:
-                            await ctx.send(f'Registry must be of type list to add')
+                    if isinstance(self.bot.config[key], list):
+                        if isinstance(self.bot.config[key][0], int) and is_num(value):
+                            value = is_num(value)
+                        self.bot.config[key].append(value)
+                        await ctx.send(f'Added {value} to registry {key}')
+                    else:
+                        await ctx.send(f'Registry must be of type list to add')
                 else:
                     await ctx.send(f'Registry {key} is locked. Cannot add {value}')
 
@@ -202,7 +230,7 @@ class LegoFuncs:
         }
         validsites = ["bandcamp.com", "soundcloud.com"]
 
-        async def get(sesh, url, headerData, parameters=None, maxNumTries = 3):
+        async def get(sesh, url, headerData, parameters=None, maxNumTries=3):
             if parameters is None:
                 parameters = {}
             numTries = 0
@@ -231,7 +259,7 @@ class LegoFuncs:
                     continue
             return songs
 
-        async def bandcamp(sesh, albumpage, headerdata): # {"album name": "", "album art": f, "files": []}
+        async def bandcamp(sesh, albumpage, headerdata):  # {"album name": "", "album art": f, "files": []}
             infostart = albumpage.find('trackinfo: ') + len('trackinfo: ')
             infoend = albumpage.find('\n', infostart) - 1
             info = json.loads(albumpage[infostart:infoend])
@@ -375,7 +403,10 @@ class LegoFuncs:
             channels.append(ctx.channel)
         if not users:
             users.append(ctx.author)
-        await ctx.send(f"```Searching through last {num} messages, in channel(s) {', '.join(x.name for x in channels)} by user(s) {'/'.join(x.display_name for x in users)} with reaction(s) '{'/'.join(reactions)}' for string(s) '{'/'.join(cmd)}'```")
+        await ctx.send(f"```Searching through last {num} messages, in channel(s) "
+                       f"{', '.join(x.name for x in channels)} by user(s) "
+                       f"{'/'.join(x.display_name for x in users)} with reaction(s) '"
+                       f"{'/'.join(reactions)}' for string(s) '{'/'.join(cmd)}'```")
         for channel in ctx.guild.text_channels:
             if channel.id in (x.id for x in channels):
                 try:
@@ -385,17 +416,20 @@ class LegoFuncs:
                         if reactions and not set(reactions).intersection((o.emoji for o in msg.reactions)):
                             continue
                         if not cmd or any(x.lower() in msg.content.lower() for x in cmd):
-                            msgs.insert(0, f"{msg.author.display_name} ({str(msg.created_at.replace(microsecond=0) - timedelta(hours=5))}): {msg.content}")
+                            msgs.insert(0, f"{msg.author.display_name} ("
+                            f"{str(msg.created_at.replace(microsecond=0) - timedelta(hours=5))}): {msg.content}")
                 except discord.Forbidden:
                     pass
                 msgs.insert(0, f"~~~~ {channel.name.upper()} ~~~~")
         try:
-            await ctx.send(content=f"{len(msgs) - len(channels)} messages found.", file=discord.File(io.BytesIO('\n'.join(msgs).encode()), filename=f"{str(ctx.message.created_at.replace(microsecond=0) - timedelta(hours=5))}-dump.txt'"))
+            await ctx.send(content=f"{len(msgs) - len(channels)} messages found.",
+                           file=discord.File(io.BytesIO('\n'.join(msgs).encode()),
+                                             filename=f"{str(ctx.message.created_at.replace(microsecond=0) - timedelta(hours=5))}-dump.txt'"))
         except discord.HTTPException:
             await ctx.send('Error: Dump file too large')
 
     @commands.command()
-    async def moji(self, ctx, opts = '-l', name = '', link = ''):
+    async def moji(self, ctx, opts='-l', name='', link=''):
         mojis = self.storage['mojis']
         if opts == '-l':
             await ctx.send('```Available mojis:\n' + '\n'.join(self.storage['mojis']) + '```')
@@ -499,9 +533,11 @@ class LegoFuncs:
                 files = []
                 for data in cmd:
                     data = is_num(data) - 1
-                    files.append(discord.File(open(os.path.join(path, os.listdir(path)[data]), 'rb'), filename=os.listdir(path)[data]))
+                    files.append(discord.File(open(os.path.join(path, os.listdir(path)[data]), 'rb'),
+                                              filename=os.listdir(path)[data]))
                 try:
-                    message = await ctx.send(content='```Warning, file(s) will be deleted in 5 minutes.```', files=files)
+                    message = await ctx.send(content='```Warning, file(s) will be deleted in 5 minutes.```',
+                                             files=files)
                     await asyncio.sleep(300)
                     await message.delete()
                 except IndexError:

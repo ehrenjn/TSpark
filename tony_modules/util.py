@@ -2,7 +2,7 @@ import json
 
 
 class JSONStore:
-        
+
     def __init__(self, file_name):
         self._file = file_name
         try:
@@ -10,13 +10,13 @@ class JSONStore:
                 self._store = json.loads(f.read())
         except FileNotFoundError:
             self._store = dict()
-        
+
     def __setitem__(self, key, value):
         if not type(key) == str:
             raise Exception('Sorry, JSON can only store string keys')
         self._store[key] = value
         self.update()
-            
+
     def __getitem__(self, key):
         return self._store.get(key)
 

@@ -9,13 +9,16 @@ import os
 import json
 import traceback
 import sys
+#REMOVE THESE
+import re
+import requests
 from tony_modules.util import JSONStore
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GLOBAL DEFINITIONS
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-ROOTPATH = os.path.join(os.environ['TONYROOT'])  # Bot's root path
+ROOTPATH = '/home/nut/PycharmProjects/TonyTest/'  # Bot's root path
 # CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))  # Auxiliary global variables
 # CONFIG = JSONStore('storage/config.json')
 MODULES = [
@@ -73,8 +76,9 @@ async def on_ready():  # Execute on bot startup
 
 
 @bot.command()
-async def help(self):
-    await self.send(f"```css\n{bot.config['HELP_MSG']}```")
+async def help(ctx):
+    await ctx.send(f"```css\n{bot.config['HELP_MSG']}```")
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

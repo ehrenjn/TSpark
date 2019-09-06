@@ -14,7 +14,7 @@ from pathlib import Path
 import io
 import json
 
-ROOTPATH = os.environ['TONYROOT']
+ROOTPATH = '/home/nut/PycharmProjects/TonyTest/'
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'wak_storage.json')
 
 
@@ -25,7 +25,7 @@ class WakStore(JSONStore):
             self['playables'] = []
 
 
-class WakFuncs():
+class WakFuncs(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -73,11 +73,11 @@ class WakFuncs():
             await ctx.send("Playable wasn't added because it was > 128 chars long")
 
     @commands.command()
-    async def restart(self, ctx, *args):
+    async def restart(self, ctx):
         if ctx.channel.id == 513536262507069443:
             await ctx.send(
                 "Rebooting...")  # I would bot.close() but then it tries to cancel the ctx.send or something and throws an error which in turn stops the restart corutine so I ain't gonna bother
-            os.system(". ./tony_modules/pull_and_reboot.sh")
+            os.system("kill -9 $(ps aux | grep -m 1 TSpark.py | awk '{print $2}')")
             exit()
         else:
             await ctx.send("Sorry, you can only restart in the bot-testing channel of the memechat server")
@@ -107,6 +107,7 @@ class WakFuncs():
         else:
             await ctx.send("Couldn't find playable: " + cmd)
 
+    @commands.Cog.listener()
     async def on_message(self, mess):
         roll = random.randint(1, self.bot.config['TENOR_CHANCE'])
         if mess.author.id != self.bot.user.id and roll == 1:
