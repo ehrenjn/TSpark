@@ -7,14 +7,14 @@ import random
 import re
 import discord
 import asyncio
-from .util import \
+from .storage import \
     JSONStore  # relative import means this wak_funcs.py can only be used as part of the tony_modules package now
 import os
 from pathlib import Path
 import io
 import json
 
-ROOTPATH = '/home/nut/PycharmProjects/TonyTest/'
+ROOTPATH = os.environ['TONYROOT']  # Bot's root path
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'wak_storage.json')
 
 
@@ -63,11 +63,12 @@ class WakFuncs(commands.Cog):
             await ctx.send(embed=embed)
 
     @commands.command()
-    async def play(self, ctx, *, cmd):
-        if len(cmd) <= 128:
-            self.bot.wstorage['playables'].append(cmd)
-            self.bot.wstorage.update()
-            await self.bot.change_presence(activity=discord.Game(name=cmd))
+    async def play(self, ctx, *, game):
+        if len(game) <= 128:
+            playables = self.bot.wstorage.read('playables')
+            playables.append(game)
+            self.bot.wstorage.write('playables', playables)
+            await self.bot.change_presence(activity=discord.Game(name=game))
             await ctx.send('added playable')
         else:
             await ctx.send("Playable wasn't added because it was > 128 chars long")
@@ -100,8 +101,8 @@ class WakFuncs(commands.Cog):
         playables = self.bot.wstorage['playables']
         if cmd in playables:
             playables.remove(cmd)
-            self.bot.wstorage.update()
-            if ctx.guild is not None and ctx.guild.me.game.name not in playables:  # ctx.guild is None if in DMs
+            self.bot.wstorage.write('playables', playables)
+            if ctx.guild is not None and ctx.guild.me.activity.name not in playables:  # ctx.guild is None if in DMs
                 await play_random_playable(self.bot)
             await ctx.send("removed playable")
         else:
@@ -131,6 +132,31 @@ class WakFuncs(commands.Cog):
                     await mess.channel.send(gif['url'])
                     break
                 print("no results for '{}'".format(search_term))
+
+    @commands.command()
+    async def wiki(self, ctx, *, query):
+        query = query.replace(' ', '_')
+        response = requests.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{query}")
+        if response.ok:
+                data = json.loads(response.content)
+                data_type = data['type']
+                if data_type == "standard":
+                    msg = discord.Embed(
+                        title=data['title'] if 'title' in data else None,
+                        description=data['description'] if 'description' in data else None,
+                        color=16777215
+                    )
+                    if 'extract' in data:
+                        msg.set_footer(text=data['extract'])
+                    if "thumbnail" in data:
+                        msg.set_image(url=data["thumbnail"]["source"])
+                    await ctx.send(embed=msg)
+                elif data_type == "disambiguation":
+                    await ctx.send("you'll have to be more specific")
+                else:
+                    await ctx.send(f"weird error: got the following data_type: {data_type}")
+        else:
+            await ctx.send("no results found")
 
 
 async def play_random_playable(bot):
