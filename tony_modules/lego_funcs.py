@@ -553,9 +553,9 @@ async def check_reminder(bot, storage):
     reminders = storage.read('reminders')
     for x in list(reminders):
         if str(datetime.now().replace(second=0, microsecond=0)) >= reminders[x]['date']:
-            del reminders[x]
+            rem = reminders.pop(x)
             storage.write('reminders', reminders) #note: putting any awaits before this write could corrupt storage
-            await bot.get_channel(reminders[x]['channel']).send(reminders[x]['user'] + ' - ' + reminders[x]['reminder'])
+            await bot.get_channel(rem['channel']).send(rem['user'] + ' - ' + rem['reminder'])
 
 
 def is_num(s):
