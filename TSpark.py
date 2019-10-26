@@ -9,18 +9,14 @@ import os
 import json
 import traceback
 import sys
-#REMOVE THESE
-import re
-import requests
-from tony_modules.util import JSONStore
+from tony_modules.storage import JSONStore
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GLOBAL DEFINITIONS
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-ROOTPATH = '/home/nut/PycharmProjects/TonyTest/'  # Bot's root path
-# CONFIG = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))  # Auxiliary global variables
-# CONFIG = JSONStore('storage/config.json')
+ROOTPATH = os.environ['TONYROOT']  # Bot's root path
+
 MODULES = [
     'tony_modules.lego_funcs',
     'tony_modules.wak_funcs',
@@ -36,7 +32,7 @@ class Tony(commands.Bot):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.config = json.load(open(os.path.join(ROOTPATH, 'storage', 'config.json')))  # Auxiliary global variables
+        self.config = JSONStore(os.path.join(ROOTPATH, 'storage', 'config.json'))  # Auxiliary global variables
 
 
 bot = Tony(command_prefix='!', case_insensitive=False)  # Configure bot prefix

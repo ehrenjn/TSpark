@@ -4,7 +4,7 @@ import requests
 import random
 import re
 import asyncio
-from tony_modules.util import \
+from .storage import \
     JSONStore  # relative import means this wak_funcs.py can only be used as part of the tony_modules package now
 import os
 import io
@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 # GLOBAL DEFINITIONS
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-ROOTPATH = os.path.join('/home/nut/PycharmProjects/TonyTest/')  # Bot's root path
+ROOTPATH = os.environ['TONYROOT']  # Bot's root path
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
 
 
@@ -178,7 +178,7 @@ class LegoFuncs(commands.Cog):
 
         elif '-l' in args:
             if len(args) == 1:
-                await ctx.send(f'Valid registries are: {", ".join(self.bot.config.keys())}')
+                await ctx.send(f'Valid registries are: {", ".join(self.bot.config.read().keys())}')
             else:
                 key = args[args.index('-l') + 1]
                 if key not in self.bot.config['LOCKED']:
@@ -192,10 +192,12 @@ class LegoFuncs(commands.Cog):
                 value = args[2]
 
                 if key not in self.bot.config['LOCKED']:
-                    if isinstance(self.bot.config[key], list):
-                        if isinstance(self.bot.config[key][0], int) and is_num(value):
-                            value = is_num(value)
-                        self.bot.config[key].append(value)
+                    all_values = self.bot.config[key]
+                    if isinstance(all_values, list):
+                        if isinstance(all_values[0], int) and is_num(value):
+                            value = int(value)
+                        all_values.append(value)
+                        self.bot.config.write(key, all_values)
                         await ctx.send(f'Added {value} to registry {key}')
                     else:
                         await ctx.send(f'Registry must be of type list to add')
@@ -205,16 +207,16 @@ class LegoFuncs(commands.Cog):
             else:
                 await ctx.send(f'Error: Must provide key to add to and value to add')
 
-        elif args[0] in self.bot.config:
+        elif args[0] in self.bot.config.read():
             key = args[0]
             value = args[1]
             if key in self.bot.config['LOCKED']:
                 await ctx.send(f'Registry {key} is locked, cannot edit')
             else:
                 if isinstance(self.bot.config[key], int) and is_num(value):
-                    value = is_num(value)
-                await ctx.send(f"Changed {key} from {self.bot.config[key]} to {value}")
+                    value = int(value)
                 self.bot.config[key] = value
+                await ctx.send(f"Changed {key} from {self.bot.config[key]} to {value}")
 
         else:
             await ctx.send(f'Invalid registry "{args[0]}"\nValid registries are: {", ".join(self.bot.config.keys())}')
@@ -325,15 +327,15 @@ class LegoFuncs(commands.Cog):
         FLAGS = ['-c', '-n']
         #  FLAG HANDLING
         for cmd in cmds:
-            if cmd is '-c':  # Specify the channel to nab from
+            if cmd == '-c':  # Specify the channel to nab from
                 channel = self.bot.get_channel(cmd.pop(cmd.index('-c') + 1))
                 continue
 
-            if cmd is '-n':  # Specify number of messages to look through
+            if cmd == '-n':  # Specify number of messages to look through
                 num = cmd.pop(cmd.index('-n') + 1)
                 if is_num(num):  # If
-                    num = is_num(num)
-                elif num is 'all':
+                    num = int(num)
+                elif num == 'all':
                     num = 'None'  # None means all messages
                 continue
 
@@ -351,7 +353,7 @@ class LegoFuncs(commands.Cog):
                 num_found += 1
             if num_found:
                 msgs = msg.author.display_name.encode() + b': ' + msg.content.encode() + b'\n' + msgs
-            if num_found is 2:
+            if num_found == 2:
                 break
         else:
             await channel.send(f'Error: Two instances of {emojis} not found in last {num} messages')
@@ -393,7 +395,7 @@ class LegoFuncs(commands.Cog):
                 if num.lower() == 'all':
                     num = None
                 elif is_num(num):
-                    num = is_num(num)
+                    num = int(num)
                 else:
                     await ctx.send('Error: Num value must be "all" or int')
                     return
@@ -430,18 +432,18 @@ class LegoFuncs(commands.Cog):
 
     @commands.command()
     async def moji(self, ctx, opts='-l', name='', link=''):
-        mojis = self.storage['mojis']
+        mojis = self.storage.read('mojis')
         if opts == '-l':
-            await ctx.send('```Available mojis:\n' + '\n'.join(self.storage['mojis']) + '```')
+            await ctx.send('```Available mojis:\n' + '\n'.join(mojis) + '```')
 
         elif opts == '-a':
             mojis[name] = link
-            self.storage.update()
+            self.storage.write('mojis', mojis)
             await ctx.send(f"Moji {name} successfully added")
 
         elif opts == '-r':
             del mojis[name]
-            self.storage.update()
+            self.storage.write('mojis', mojis)
             await ctx.send(f"Moji {name} successfully removed")
 
         elif opts in mojis:
@@ -471,17 +473,17 @@ class LegoFuncs(commands.Cog):
             rem_user = ctx.author.mention
         if 'days' or 'hours' or 'minutes' in cmd:
             try:
-                rem_date += timedelta(days=is_num(cmd.pop(cmd.index('days') - 1)))
+                rem_date += timedelta(days=int(cmd.pop(cmd.index('days') - 1)))
                 cmd.remove('days')
             except ValueError:
                 pass
             try:
-                rem_date += timedelta(hours=is_num(cmd.pop(cmd.index('hours') - 1)))
+                rem_date += timedelta(hours=int(cmd.pop(cmd.index('hours') - 1)))
                 cmd.remove('hours')
             except ValueError:
                 pass
             try:
-                rem_date += timedelta(minutes=is_num(cmd.pop(cmd.index('minutes') - 1)))
+                rem_date += timedelta(minutes=int(cmd.pop(cmd.index('minutes') - 1)))
                 cmd.remove('minutes')
             except ValueError:
                 pass
@@ -492,13 +494,16 @@ class LegoFuncs(commands.Cog):
             if int(x) + 1 not in self.storage['reminders']:
                 rem_index = int(x) + 1
                 break
-
-        self.storage['reminders'][rem_index] = {}
-        self.storage['reminders'][rem_index]['user'] = rem_user
-        self.storage['reminders'][rem_index]['date'] = str(rem_date)
-        self.storage['reminders'][rem_index]['reminder'] = ' '.join(cmd)
-        self.storage['reminders'][rem_index]['channel'] = ctx.message.channel.id
-        self.storage.update()
+        
+        new_reminder = {
+            'user': rem_user,
+            'date': str(rem_date),
+            'reminder': ' '.join(cmd),
+            'channel': ctx.message.channel.id
+        }
+        reminders = self.storage.read('reminders')
+        reminders[rem_index] = new_reminder
+        self.storage.write('reminders', reminders)
         await ctx.send(f"Reminder '{' '.join(cmd)}' added for {rem_date}")
 
     @commands.command()
@@ -532,7 +537,7 @@ class LegoFuncs(commands.Cog):
             else:
                 files = []
                 for data in cmd:
-                    data = is_num(data) - 1
+                    data = int(data) - 1
                     files.append(discord.File(open(os.path.join(path, os.listdir(path)[data]), 'rb'),
                                               filename=os.listdir(path)[data]))
                 try:
@@ -545,12 +550,12 @@ class LegoFuncs(commands.Cog):
 
 
 async def check_reminder(bot, storage):
-    reminders = storage['reminders']
+    reminders = storage.read('reminders')
     for x in list(reminders):
         if str(datetime.now().replace(second=0, microsecond=0)) >= reminders[x]['date']:
-            await bot.get_channel(reminders[x]['channel']).send(reminders[x]['user'] + ' - ' + reminders[x]['reminder'])
-            del reminders[x]
-            storage.update()
+            rem = reminders.pop(x)
+            storage.write('reminders', reminders) #note: putting any awaits before this write could corrupt storage
+            await bot.get_channel(rem['channel']).send(rem['user'] + ' - ' + rem['reminder'])
 
 
 def is_num(s):
@@ -558,8 +563,7 @@ def is_num(s):
         int(s)
     except ValueError:
         return False
-    else:
-        return int(s)
+    return True
 
 
 async def lego_background(bot, storage):

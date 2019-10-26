@@ -159,8 +159,7 @@ IOU_CHANNEL_ID = 391842582948216833
 async def plot_and_send(ctx, debts, additional_text):
     graph = plot_debts(debts)
     graph = discord.File(io.BytesIO(graph), filename="ious.png")
-    await ctx.send(additional_text,
-                   file=graph)  # technically "dangerous" (since another call to !iou could change the file before it's sent) but it doesn't really matter for this command
+    await ctx.send(additional_text, file=graph)
 
 
 class Financials(commands.Cog):
