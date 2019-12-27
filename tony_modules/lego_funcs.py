@@ -76,6 +76,10 @@ class LegoFuncs(commands.Cog):
                 chnl = self.bot.get_channel(376539985412620289)
                 await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
                                 embed=emb)
+    
+    @commands.command()
+    async def ip(self, ctx):
+        await ctx.send(requests.get("https://ifconfig.me").text)
 
     @commands.command()
     async def define(self, ctx, *args):
