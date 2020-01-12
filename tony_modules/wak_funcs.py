@@ -54,7 +54,7 @@ class WakFuncs(commands.Cog):
         query = '+'.join(args) + '&source=lnms&tbm=isch'
         url = 'https://www.google.ca/search?q=' + query
         data = requests.get(url).content.decode(errors='ignore')
-        imgs = re.findall(r'src="(https://encrypted-tbn0\.gstatic\.com/images.+?)"', data)
+        imgs = re.findall(r'src="(https?://(?:encrypted-tbn0|t0)\.gstatic\.com/images.+?)"', data)
         if len(imgs) == 0:
             await ctx.send('No images found')
         else:
