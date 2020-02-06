@@ -78,6 +78,11 @@ class LegoFuncs(commands.Cog):
                                 embed=emb)
     
     @commands.command()
+    async def restart(self, ctx):
+        await ctx.send("Restarting.... This could take a while")
+        exit()
+
+    @commands.command()
     async def ip(self, ctx):
         await ctx.send(requests.get("https://ifconfig.me").text)
 
