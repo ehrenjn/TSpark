@@ -74,16 +74,6 @@ class WakFuncs(commands.Cog):
             await ctx.send("Playable wasn't added because it was > 128 chars long")
 
     @commands.command()
-    async def restart(self, ctx):
-        if ctx.channel.id == 513536262507069443:
-            await ctx.send(
-                "Rebooting...")  # I would bot.close() but then it tries to cancel the ctx.send or something and throws an error which in turn stops the restart corutine so I ain't gonna bother
-            os.system("kill -9 $(ps aux | grep -m 1 TSpark.py | awk '{print $2}')")
-            exit()
-        else:
-            await ctx.send("Sorry, you can only restart in the bot-testing channel of the memechat server")
-
-    @commands.command()
     async def history(self, ctx, *args):
         await ctx.send("Reading all messages in this channel (might take a while)...")
         all_msgs = []

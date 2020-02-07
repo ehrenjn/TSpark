@@ -79,8 +79,11 @@ class LegoFuncs(commands.Cog):
     
     @commands.command()
     async def restart(self, ctx):
-        await ctx.send("Restarting.... This could take a while")
-        exit()
+        if ctx.channel.id == 513536262507069443:
+            await ctx.send("Restarting.... This could take a while")
+            exit()
+        else:
+            await ctx.send("Must be in #bot-testing for this")
 
     @commands.command()
     async def ip(self, ctx):
