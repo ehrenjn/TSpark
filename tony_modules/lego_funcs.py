@@ -79,11 +79,8 @@ class LegoFuncs(commands.Cog):
     
     @commands.command()
     async def restart(self, ctx):
-        if ctx.channel.id == 513536262507069443:
-            await ctx.send("Restarting.... This could take a while")
-            exit()
-        else:
-            await ctx.send("Must be in #bot-testing for this")
+        await ctx.send("Restarting.... This could take a while")
+        exit()
 
     @commands.command()
     async def ip(self, ctx):
@@ -94,15 +91,39 @@ class LegoFuncs(commands.Cog):
         if '-n' in args:
             limit = args[args.index('-n') + 1]
         else:
-            limit = 2
-        word = args[:-1]
-        url = f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key=830bac04-d6b1-4ed1-bc34-94352558aabb"
-        response = requests.get(url)
-        if not response: # Empty
-            await ctx.send(f"Error: {word} could not be defined")
-        else:
-            JSON = response.json()[0]
-            await ctx.send(JSON["def"])
+            limit = 1
+
+        word = args[-1]
+        url = f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['MW_KEY']}"
+
+        try:
+            resp = requests.get(url).json()
+        except:
+            await ctx.send(f"Error: {word} has no definition")
+            return
+
+        for i in range(0, int(limit)):
+            try:
+                emb = discord.Embed(title=f"{word} - {resp[i]['fl']}:", description=f"{resp[i]['shortdef'][0]}")
+            except:
+                continue
+            await ctx.send(embed=emb)
+
+        try:
+            audio = resp[0]["hwi"]["prs"][0]["sound"]["audio"]
+            # Arbitary api rules (found here https://dictionaryapi.com/products/json#sec-2.prs)
+            if audio[0:3] == "bix":
+                sub = "bix"
+            elif audio[0:2] == "gg":
+                sub = "gg"
+            elif not audio[0].isalpha():
+                sub = "number"
+            else:
+                sub = audio[0]
+            alink = f"https://media.merriam-webster.com/soundc11/{sub}/{audio}.wav"
+            await ctx.send(file=discord.File(io.BytesIO(requests.get(alink, stream=True).content), filename=f"{word}.wav"))
+        except:
+            await ctx.send("No pronunciation found")
 
     @commands.command()
     async def pyde(self, ctx, *args):

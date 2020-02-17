@@ -73,7 +73,7 @@ async def on_ready():  # Execute on bot startup
 
 @bot.command()
 async def help(ctx):
-    await ctx.send(f"```css\n{bot.config['HELP_MSG']}```")
+    await ctx.send(f"```css\n{open(os.path.join(ROOTPATH, 'help.txt'), 'r').read()}```")
 
 
 
