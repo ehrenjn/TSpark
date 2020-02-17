@@ -78,11 +78,6 @@ class LegoFuncs(commands.Cog):
                                 embed=emb)
     
     @commands.command()
-    async def restart(self, ctx):
-        await ctx.send("Restarting.... This could take a while")
-        exit()
-
-    @commands.command()
     async def ip(self, ctx):
         await ctx.send(requests.get("https://ifconfig.me").text)
 
@@ -106,7 +101,9 @@ class LegoFuncs(commands.Cog):
             try:
                 emb = discord.Embed(title=f"{word} - {resp[i]['fl']}:", description=f"{resp[i]['shortdef'][0]}")
             except:
-                continue
+                await ctx.send(f"{word} has no more definitions")
+                break
+
             await ctx.send(embed=emb)
 
         try:

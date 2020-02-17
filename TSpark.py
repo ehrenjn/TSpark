@@ -75,6 +75,10 @@ async def on_ready():  # Execute on bot startup
 async def help(ctx):
     await ctx.send(f"```css\n{open(os.path.join(ROOTPATH, 'help.txt'), 'r').read()}```")
 
+@bot.command()
+async def restart(self, ctx):
+    await ctx.send("Restarting.... This could take a while")
+    exit()
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
