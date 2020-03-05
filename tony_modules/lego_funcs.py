@@ -4,6 +4,7 @@ import requests
 import random
 import re
 import asyncio
+import wave
 from .storage import \
     JSONStore  # relative import means this wak_funcs.py can only be used as part of the tony_modules package now
 import os
@@ -36,7 +37,7 @@ class LegoFuncs(commands.Cog):
         self.storage = store
 
     @commands.Cog.listener()
-    async def on_message(self, message, ):
+    async def on_message(self, message):
         if message.guild.id == self.bot.config['SERVER_ID'] and message.channel.id not in self.bot.config[
             'BANNED_CHANNELS'] and message.author.id != self.bot.user.id:
             cur_channel = self.bot.get_channel(message.channel.id)
@@ -77,9 +78,81 @@ class LegoFuncs(commands.Cog):
                 await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
                                 embed=emb)
     
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        await ctx.send(error)
+
     @commands.command()
     async def ip(self, ctx):
         await ctx.send(requests.get("https://ifconfig.me").text)
+
+    @commands.command()
+    async def speak(self, ctx, *args):
+        word_map = {}
+        words = list(args)
+        
+        for word in words:
+            if word in word_map:
+                continue
+
+            try:
+                resp = requests.get(
+                            f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['MW_KEY']}"
+                        ).json()
+            except:
+                continue
+
+            for block in resp:
+                try:
+                    audio = block["hwi"]["prs"][0]["sound"]["audio"]
+                    if audio[0:3] == "bix":
+                        sub = "bix"
+                    elif audio[0:2] == "gg":
+                        sub = gg
+                    elif not audio[0].isalpha():
+                        sub = "number"
+                    else:
+                        sub = audio[0]
+                    word_map[word] = requests.get(
+                            f"https://media.merriam-webster.com/soundc11/{sub}/{audio}.wav",
+                            stream=True)
+                    break
+                except:
+                    continue
+        if not word_map:
+            return
+
+        params_set = False
+        speed = 1
+        wav = io.BytesIO()
+        with wave.open(wav, 'wb') as speech_file:
+            for word in words:
+                if re.match(r'\{[0-9](\.[0-9]+)?\}', word):
+                    speed = float(re.sub('[\{\}]', '', word))
+                    continue
+                if word not in word_map:
+                    continue
+                
+                word_file = io.BytesIO()
+                with wave.open(word_file, 'wb') as wf:
+                    with wave.open(io.BytesIO(word_map[word].content), 'rb') as cf:
+                        params = cf.getparams()
+                        wf.setparams(cf.getparams())
+                        
+                        pos = float(0)
+                        while pos < cf.getnframes():
+                            cf.setpos(int(pos))
+                            wf.writeframes(cf.readframes(1))
+                            pos += speed
+                word_file.seek(0)
+                with wave.open(word_file, 'rb') as w:
+                    if not params_set:
+                        speech_file.setparams(params)
+                        params_set = True
+                    speech_file.writeframes(w.readframes(w.getnframes()))
+                    
+        wav.seek(0)
+        await ctx.send(file=discord.File(io.BytesIO(wav.read()), filename="speak.wav"))
 
     @commands.command()
     async def define(self, ctx, *args):

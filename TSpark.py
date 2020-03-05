@@ -60,7 +60,6 @@ async def on_message(message):
 async def on_error(ctx, event, *args, **kwargs):
     await bot.get_channel(548323764186775553).send(f'```{traceback.format_exc()}```')
 
-
 @bot.event
 async def on_ready():  # Execute on bot startup
     await bot.wait_until_ready()
@@ -76,7 +75,7 @@ async def help(ctx):
     await ctx.send(f"```css\n{open(os.path.join(ROOTPATH, 'help.txt'), 'r').read()}```")
 
 @bot.command()
-async def restart(self, ctx):
+async def restart(ctx):
     await ctx.send("Restarting.... This could take a while")
     exit()
 
