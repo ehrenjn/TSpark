@@ -2,9 +2,12 @@ import discord
 from discord.ext import commands
 import requests
 import random
+import traceback
 import re
 import asyncio
 import wave
+import numpy as np
+import subprocess
 from .storage import \
     JSONStore  # relative import means this wak_funcs.py can only be used as part of the tony_modules package now
 import os
@@ -22,7 +25,6 @@ STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 
 class LegoStore(JSONStore):
     def __init__(self):
@@ -54,11 +56,12 @@ class LegoFuncs(commands.Cog):
                     await asyncio.sleep(random.randint(30, 50))
                     await cur_channel.send('Just uhhhh...\nhttps://www.youtube.com/watch?v=fUkq2sArNl0&t=57s')
 
+
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
         emb.set_author(name=reaction.message.author.display_name + ':', icon_url=reaction.message.author.avatar_url)
-
+        emb.add_field(name="l4tl:", value=reaction.message.jump_url, inline=True)
         try:
             name = reaction.emoji.name
         except AttributeError:
@@ -67,101 +70,146 @@ class LegoFuncs(commands.Cog):
             if reaction.message.attachments:  # If the original message has attachments, add them to the embed
                 emb.set_image(url=list(reaction.message.attachments)[0].url)
 
-            if name == 'downvote' and reaction.message.author.id != self.bot.user.id:
+            if name == 'downvote':
                 chnl = self.bot.get_channel(513822540464914432)
                 await chnl.send(
                     f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
                     embed=emb)
 
-            elif name == 'upvote' and reaction.message.author.id != self.bot.user.id:
+            elif name == 'upvote':
                 chnl = self.bot.get_channel(376539985412620289)
-                await chnl.send(f"\n\n**{user.name} declared the following to be highly esteemed content:**",
-                                embed=emb)
+                await chnl.send(
+                    f"**{user.name} declared the following to be highly esteemed content:**",
+                    embed=emb)
     
-    @commands.Cog.listener()
-    async def on_command_error(self, ctx, error):
-        await ctx.send(error)
-
     @commands.command()
-    async def ip(self, ctx):
+    async def ip(self, ctx, **kwargs):
+        if "pipe" in kwargs:
+            return (requests.get("https://ifconfig.me").text)
+        
         await ctx.send(requests.get("https://ifconfig.me").text)
 
     @commands.command()
     async def speak(self, ctx, *args):
         word_map = {}
         words = list(args)
-        
-        for word in words:
-            if word in word_map:
-                continue
-
-            try:
-                resp = requests.get(
-                            f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['MW_KEY']}"
-                        ).json()
-            except:
-                continue
-
-            for block in resp:
-                try:
-                    audio = block["hwi"]["prs"][0]["sound"]["audio"]
-                    if audio[0:3] == "bix":
-                        sub = "bix"
-                    elif audio[0:2] == "gg":
-                        sub = gg
-                    elif not audio[0].isalpha():
-                        sub = "number"
-                    else:
-                        sub = audio[0]
-                    word_map[word] = requests.get(
-                            f"https://media.merriam-webster.com/soundc11/{sub}/{audio}.wav",
-                            stream=True)
-                    break
-                except:
-                    continue
-        if not word_map:
-            return
 
         params_set = False
-        speed = 1
-        wav = io.BytesIO()
-        with wave.open(wav, 'wb') as speech_file:
+        config = {"speed": 1, "pitch": 1}
+        sentence_file = io.BytesIO() # Full sentence
+        with wave.open(sentence_file, 'wb') as sf:
             for word in words:
-                if re.match(r'\{[0-9](\.[0-9]+)?\}', word):
-                    speed = float(re.sub('[\{\}]', '', word))
+                if re.match(r'\{[0-9\.,-]+\}', word):
+                    con = re.sub('[\{\}]', '', word)
+                    try:
+                        config["speed"] = float(con.split(',')[0])
+                        config["pitch"] = float(con.split(',')[1])
+                    except:
+                        pass
                     continue
+                 
+                word = re.sub(r'[^a-zA-Z0-9\']', '', word)
+                # Easy to generate and change pitch/speed using espeak, less so with MW
+                # Therefore we should note which type a file is in word_map as well as its config
                 if word not in word_map:
-                    continue
-                
-                word_file = io.BytesIO()
-                with wave.open(word_file, 'wb') as wf:
-                    with wave.open(io.BytesIO(word_map[word].content), 'rb') as cf:
-                        params = cf.getparams()
-                        wf.setparams(cf.getparams())
+                    try:
+                        resp = requests.get(
+                                f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['MW_KEY']}"
+                                ).json()
                         
-                        pos = float(0)
-                        while pos < cf.getnframes():
-                            cf.setpos(int(pos))
-                            wf.writeframes(cf.readframes(1))
-                            pos += speed
-                word_file.seek(0)
-                with wave.open(word_file, 'rb') as w:
+                        audio = resp[0]["hwi"]["prs"][0]["sound"]["audio"]
+                        if audio[0:3] == "bix":
+                            sub = "bix"
+                        elif audio[0:2] == "gg":
+                            sub = "gg"
+                        elif not audio[0].isalpha():
+                            sub = "number"
+                        else:
+                            sub = audio[0]
+                        
+                        word_map[word] = io.BytesIO(requests.get(
+                            f"https://media.merriam-webster.com/soundc11/{sub}/{audio}.wav",
+                            stream=True).content)
+                        #word_file = io.BytesIO()
+                        #with wave.open(word_file, 'wb') as wf:
+                        #    with wave.open(content_file, 'rb') as cf:
+                        #        wf.setparams(cf.getparams())
+                        #        pos = float(0)
+                        #        while pos < cf.getnframes():
+                        #            cf.setpos(int(pos))
+                        #            wf.writeframes(cf.readframes(1))
+                        #            pos += speed
+                        #word_file.seek(0)
+                        
+                    except:
+                        proc = subprocess.Popen(['espeak', word, '-z', '--stdout'], stdout=subprocess.PIPE)
+                        word_map[word] = io.BytesIO(proc.communicate()[0])
+               
+                alt_file = word_map[word] # File to be altered
+                alt_file.seek(0)
+                if config["speed"] != 1 or config["pitch"] != 1: # Must alter file
+                    alt_file = io.BytesIO()
+                    with wave.open(alt_file, 'wb') as tf:
+                        with wave.open(word_map[word], 'rb') as cf:
+                            params = list(cf.getparams())
+                            params[3] = 0
+                            tf.setparams(tuple(params))
+                            tf.setframerate(int(cf.getframerate() * config["speed"]))
+                            
+                            if config["pitch"] == 1:
+                                continue
+
+                            nframes = (word_map[word].getbuffer().nbytes - 44) // (cf.getnchannels() * cf.getsampwidth())
+                            fr = 20 # Number of iterations per second of audio
+                            sz = cf.getframerate()//fr # Number of frames per iteration
+                            c = int(nframes/sz) # Number of iterations
+                            shift = int((100*config["pitch"])//fr)
+                            for _ in range(c):
+                                if cf.getsampwidth() == 1:
+                                    typ = np.int8
+                                elif cf.getsampwidth() == 2:
+                                    typ = np.int16
+                                
+                                da = np.fromstring(cf.readframes(sz), dtype=typ)
+                                if cf.getnchannels() == 1:
+                                    f = np.fft.rfft(da)
+                                    f = np.roll(f, shift)
+                                    if shift >= 0:
+                                        f[0:shift] = 0
+                                    else:
+                                        f[shift:] = 0
+                                    n = np.fft.irfft(f)
+                                    ns = np.column_stack((n)).ravel().astype(typ)
+                                elif cf.getnchannels() == 2:
+                                    left, right = da[0::2], da[1::2]
+                                    lf, rf = np.fft.rfft(left), np.fft.rfft(right)
+                                    lf, rf = np.roll(lf, shift), np.roll(rf, shift)
+                                    if shift >= 0:
+                                        lf[0:shift], rf[0:shift] = 0, 0
+                                    else:
+                                        lf[shift:], rf[shift:] = 0, 0
+                                    nl, nr = np.fft.irfft(lf), np.fft.irfft(rf)
+                                    ns = np.column_stack((nl, nr)).ravel().astype(typ)
+                                tf.writeframes(ns.tostring())
+                
+                alt_file.seek(0)
+                with wave.open(alt_file, 'rb') as wf:
                     if not params_set:
-                        speech_file.setparams(params)
+                        sf.setparams(wf.getparams())
                         params_set = True
-                    speech_file.writeframes(w.readframes(w.getnframes()))
+                    sf.writeframes(wf.readframes(wf.getnframes()))
                     
-        wav.seek(0)
-        await ctx.send(file=discord.File(io.BytesIO(wav.read()), filename="speak.wav"))
+        sentence_file.seek(0)
+        await ctx.send(file=discord.File(io.BytesIO(sentence_file.read()), filename="speak.wav"))
 
     @commands.command()
-    async def define(self, ctx, *args):
+    async def define(self, ctx, *args, **kwargs):
         if '-n' in args:
             limit = args[args.index('-n') + 1]
         else:
             limit = 1
-
-        word = args[-1]
+        
+        word = re.sub(r'[^a-zA-Z0-9\']', '', args[-1])
         url = f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['MW_KEY']}"
 
         try:
@@ -176,6 +224,9 @@ class LegoFuncs(commands.Cog):
             except:
                 await ctx.send(f"{word} has no more definitions")
                 break
+
+            if "pipe" in kwargs:
+                return emb.description
 
             await ctx.send(embed=emb)
 
@@ -268,10 +319,14 @@ class LegoFuncs(commands.Cog):
 
 
     @commands.command()
-    async def joke(self, ctx):  # Tell a joke using the official Chuck Norris Joke API©
+    async def joke(self, ctx, **kwargs):  # Tell a joke using the official Chuck Norris Joke API©
         resp = requests.get('https://api.chucknorris.io/jokes/random').json()  # Get the response in JSON
         emb = discord.Embed(title=resp['value'])  # Prepare the embed
         emb.set_author(name='', icon_url=resp['icon_url'].replace('\\', ''))  # Attach icon
+        
+        if "pipe" in kwargs:
+            return emb.title
+
         await ctx.send(embed=emb)
 
     @commands.command()
@@ -333,34 +388,30 @@ class LegoFuncs(commands.Cog):
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-CA,en-GB;q=0.9,en-US;q=0.8,en;q=0.7}'
         }
-        validsites = ["bandcamp.com", "soundcloud.com"]
 
-        async def get(sesh, url, headerData, parameters=None, maxNumTries=3):
-            if parameters is None:
-                parameters = {}
-            numTries = 0
-            while (numTries < maxNumTries):
+        async def get(sesh, url, headerData, parameters={}, maxNumTries=3):
+            for _ in range(1, maxNumTries):
                 try:
                     return sesh.get(url, params=parameters, headers=headerData)
                 except:
-                    numTries += 1
+                    continue
             await ctx.send("Failed to get data")
-            return
 
         async def soundcloud(sesh, page, headerdata):
             songs = []
-            trackParams = {"client_id": "R05HJlT1Pq49aYbJl7VfKJ587r2blpL1"}
+            trackParams = {"client_id": self.bot.config['SC_ID']}
             ids = set(re.findall(r'"id":[0-9]{5,}', page))
-            for id in ids:
-                trackURL = f"https://api.soundcloud.com/i1/tracks/{str(id)[5:]}/streams"
-                infoURL = f"https://api.soundcloud.com/tracks/{str(id)[5:]}?client_id=R05HJlT1Pq49aYbJl7VfKJ587r2blpL1"
+            
+            for i in ids:
                 try:
-                    mp3URL = await get(sesh, trackURL, headerdata, trackParams)
-                    if mp3URL and mp3URL.status_code == 200:
-                        mp3 = await get(sesh, mp3URL.json()["http_mp3_128_url"], headerdata)
-                        trackinfo = await get(sesh, infoURL, headerdata)
-                        songs.append({'title': f'{trackinfo.json()["title"]}.mp3', 'file': mp3.content})
-                except KeyError:
+                    i = str(i)[5:]
+                    infoURL = f"https://api-v2.soundcloud.com/tracks/{i}?client_id={self.bot.config['SC_ID']}"
+                    info = await get(sesh, infoURL, headerdata, trackParams)
+                    dlurl = list(filter(lambda u: u["format"]["protocol"] == "progressive", info.json()["media"]["transcodings"]))[0]["url"]
+                    mp3URL = await get(sesh, dlurl, headerdata, trackParams)
+                    mp3 = await get(sesh, mp3URL.json()["url"], headerdata)
+                    songs.append({'title': f'{info.json()["title"]}.mp3', 'file': io.BytesIO(mp3.content)})
+                except:
                     continue
             return songs
 
@@ -391,10 +442,6 @@ class LegoFuncs(commands.Cog):
 
         for link in links:
             plink = urlparse(link)
-            if not any(site in plink.netloc for site in validsites):
-                await ctx.send(f"Error: Invalid site, skipping...\nValid sites:{', '.join(validsites)}")
-                continue
-
             page = await get(sesh, link, headerdata)
 
             if 'bandcamp' in plink.netloc:
@@ -406,18 +453,23 @@ class LegoFuncs(commands.Cog):
                 songs = await soundcloud(sesh, page.content.decode('utf-8'), headerdata)
 
             else:
+                await ctx.send(f"{link} is not a supported site, skipping...")
                 continue
 
             for song in songs:
                 try:
-                    await ctx.send(file=discord.File(song['file'], song['title']))
+                    await ctx.send(file=discord.File(song['file'], filename=song['title']))
                 except discord.errors.HTTPException:
                     await ctx.send("Error, file too large to send...")
+                except:
+                    await ctx.send("Failed to send file")
 
         await ctx.send("All done")
 
     @commands.command()
-    async def roll(self, ctx):  # Outputs the message id of the message sent ("roll")
+    async def roll(self, ctx, **kwargs):  # Outputs the message id of the message sent ("roll")
+        if "pipe" in kwargs:
+            return ctx.message.id
         await ctx.send(f"{ctx.author.display_name} rolled a {ctx.message.id}")
 
     @commands.command()
@@ -478,7 +530,8 @@ class LegoFuncs(commands.Cog):
                 if user.lower() == 'all':
                     users = ctx.guild.members
                 else:
-                    users.append(self.bot.get_user(int(re.sub('[<@>]', '', user))))
+                    await ctx.send(user)
+                    users.append(self.bot.get_user(int(re.sub('[!<@>]', '', user))))
                 cmd.remove('-u')
 
             if '-r' in cmd:
@@ -554,7 +607,6 @@ class LegoFuncs(commands.Cog):
 
         else:
             await ctx.send(f"Moji '{opts}' not found")
-        await ctx.message.delete()
 
     @commands.command()
     async def reminder(self, ctx, *cmd):
