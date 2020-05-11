@@ -147,6 +147,32 @@ class WakFuncs(commands.Cog):
                     await ctx.send(f"weird error: got the following data_type: {data_type}")
         else:
             await ctx.send("no results found")
+    
+
+    @commands.command()
+    async def covid(self, ctx, *args):
+        api_url = "https://api.ontario.ca/api/drupal/page%2F2019-novel-coronavirus?fields=nid,field_body_beta,body"
+        response = requests.get(api_url)
+        if not response.ok:
+            await ctx.send(f"error: ontario api returned a {response.status_code} status code")
+            return
+        data = response.content.decode()
+
+        base_regex = ".+?(\d+)</t"
+        fields = {
+            "Infected": re.search(f"Confirmed positive{base_regex}", data),
+            "Dead": re.search(f"Deceased{base_regex}", data),
+            "Under Investigation": re.search(f"Currently under investigation{base_regex}", data),
+            "Negative Tests": re.search(f"Negative{base_regex}", data)
+        }
+
+        msg = discord.Embed(title="Ontario Covid Stats")
+        for name, match in fields.items():
+            value = match[1] if match is not None else "PARSING ERROR"
+            msg.add_field(name=name, value=value, inline=False)
+
+        await ctx.send(embed=msg)
+
 
 
 async def play_random_playable(bot):

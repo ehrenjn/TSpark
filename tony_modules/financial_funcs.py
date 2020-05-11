@@ -101,7 +101,7 @@ def plot_debts(all_debts):
 
 ################################### Message parsing #############################################
 
-DEBT_QUERY = re.compile(r'(.+)owes?(.+)')  # to find IOUs
+DEBT_QUERY = re.compile(r'(.+\s)owes?(\s.+)')  # to find IOUs
 MONEY_QUERY = re.compile(r'\$[\d.]+|[\d.]+\$|[\d.]+ dollars|[\d.]+ bucks')  # to find monetary values
 CROSSED_OUT_QUERY = re.compile(r'~+.*?~+')  # to find crossed out text
 NAMES = {
