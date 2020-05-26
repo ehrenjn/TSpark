@@ -58,26 +58,31 @@ class LegoFuncs(commands.Cog):
 
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        emb = discord.Embed(title=reaction.message.content, colour=reaction.message.author.colour)  # Create embed
-        emb.set_author(name=reaction.message.author.display_name + ':', icon_url=reaction.message.author.avatar_url)
-        emb.add_field(name="l4tl:", value=reaction.message.jump_url, inline=True)
+    async def on_raw_reaction_add(self, reaction):
+        channel = self.bot.get_channel(reaction.channel_id)
+        user = self.bot.get_user(reaction.user_id)
+        msg = await channel.fetch_message(reaction.message_id)
+    
+        emb = discord.Embed(title=msg.content, colour=msg.author.colour)  # Create embed
+        emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
+        emb.add_field(name="l4tl:", value=msg.jump_url, inline=True)
+        
         try:
             name = reaction.emoji.name
         except AttributeError:
             pass
         else:
-            if reaction.message.attachments:  # If the original message has attachments, add them to the embed
-                emb.set_image(url=list(reaction.message.attachments)[0].url)
+            if msg.attachments:  # If the original message has attachments, add them to the embed
+                emb.set_image(url=list(msg.attachments)[0].url)
 
             if name == 'downvote':
-                chnl = self.bot.get_channel(513822540464914432)
+                chnl = self.bot.get_channel(self.bot.config['WORST_OF'])
                 await chnl.send(
                     f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
                     embed=emb)
 
             elif name == 'upvote':
-                chnl = self.bot.get_channel(376539985412620289)
+                chnl = self.bot.get_channel(self.bot.config['BEST_OF'])
                 await chnl.send(
                     f"**{user.name} declared the following to be highly esteemed content:**",
                     embed=emb)
