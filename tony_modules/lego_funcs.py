@@ -40,8 +40,7 @@ class LegoFuncs(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.guild.id == self.bot.config['SERVER_ID'] and message.channel.id not in self.bot.config[
-            'BANNED_CHANNELS'] and message.author.id != self.bot.user.id:
+        if self.bot.filter(message, False):
             cur_channel = self.bot.get_channel(message.channel.id)
 
             if message.channel.id == self.bot.config['VIDEO_ID'] and "http" in message.content:

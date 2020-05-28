@@ -49,6 +49,8 @@ class Tony(commands.Bot):
                 await bot.log(f"```Failed to import {module}:\n{traceback.format_exc()}```")
         print("Bot up and running")
 
+    def filter(self, msg, bot_allowed = False): # Filter received messages
+        return (bot_allowed or msg.author.id != self.user.id) and msg.guild.id == self.config['SERVER_ID'] and msg.channel.id not in self.config['BANNED_CHANNELS']
 
 bot = Tony(command_prefix='!', case_insensitive=False)  # Configure bot prefix
 bot.remove_command('help')  # Remove keyword "help" from reserved command list
@@ -60,7 +62,7 @@ bot.remove_command('help')  # Remove keyword "help" from reserved command list
 @bot.event # Command filtering
 async def on_message(msg):
     ctx = await bot.get_context(msg)
-    if msg.guild.id == bot.config['SERVER_ID'] and msg.channel.id not in bot.config['BANNED_CHANNELS']:
+    if bot.filter(msg):
         while re.search(r'\$\(![a-z]+[^$()]*\)', msg.content):
             sub = re.search(r'\$\(![a-z]+[^$()]*\)', msg.content)[0]
             args = sub[3:-1].split(" ") # Strip "$(!" and ")" and split the isolated command into pieces
@@ -104,12 +106,15 @@ async def on_guild_emojis_update(guild, before, after):
 
 @bot.event # Archive deleted messages
 async def on_raw_message_delete(raw):
-    if raw.cached_message:
+    if raw.cached_message and bot.filter(raw.cached_message):
         msg = raw.cached_message
         channel = bot.get_channel(raw.channel_id)
-        emb = discord.Embed(title=msg.content, colour=msg.author.colour)  # Create embed
+        emb = discord.Embed(title=f"**The following message was deleted from {channel.mention}:", 
+                description=msg.content,
+                colour=msg.author.colour)  # Create embed
         emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
-        emb.set_image(url=list(msg.attachments)[0].url)
+        if msg.attachments:
+            emb.set_image(url=list(msg.attachments)[0].url)
         await bot.get_channel(bot.config['RECYCLE_BIN']).send(f"**The following message was deleted from {channel.mention}:**", embed=emb)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
