@@ -109,8 +109,7 @@ async def on_raw_message_delete(raw):
     if raw.cached_message and bot.filter(raw.cached_message):
         msg = raw.cached_message
         channel = bot.get_channel(raw.channel_id)
-        emb = discord.Embed(title=f"**The following message was deleted from {channel.mention}:", 
-                description=msg.content,
+        emb = discord.Embed(description=msg.content,
                 colour=msg.author.colour)  # Create embed
         emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
         if msg.attachments:
