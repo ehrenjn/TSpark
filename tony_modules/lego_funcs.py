@@ -31,6 +31,8 @@ class LegoStore(JSONStore):
         super().__init__(STORAGE_FILE)
         if self['reminders'] is None:
             self['reminders'] = {}
+        if self['watchlist'] is None:
+            self['watchlist'] = {}
 
 
 class LegoFuncs(commands.Cog):
@@ -43,11 +45,13 @@ class LegoFuncs(commands.Cog):
         if self.bot.filter(message, False):
             cur_channel = self.bot.get_channel(message.channel.id)
 
-            if message.channel.id == self.bot.config['VIDEO_ID'] and "http" in message.content:
+            if message.channel.id in self.bot.config['VIDEO_IDS'] and "http" in message.content:
                 await message.add_reaction("👀")
+                await message.add_reaction("🕔")
 
             elif message.channel.id == self.bot.config['MUSIC_ID'] and "http" in message.content:
                 await message.add_reaction("👂")
+                await message.add_reaction("🕔")
 
             if 'ai' in re.findall(r'\bai\b', message.content.lower()):
                 async with cur_channel.typing():
@@ -62,30 +66,69 @@ class LegoFuncs(commands.Cog):
         user = self.bot.get_user(reaction.user_id)
         msg = await channel.fetch_message(reaction.message_id)
     
-        emb = discord.Embed(title=msg.content, colour=msg.author.colour)  # Create embed
-        emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
-        emb.add_field(name="l4tl:", value=msg.jump_url, inline=True)
-        
         try:
             name = reaction.emoji.name
         except AttributeError:
-            pass
+            return
         else:
             if msg.attachments:  # If the original message has attachments, add them to the embed
                 emb.set_image(url=list(msg.attachments)[0].url)
 
-            if name == 'downvote':
+            if name == 'downvote': # Add to worstof
+                emb = discord.Embed(title=msg.content, colour=msg.author.colour)  # Create embed
+                emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
+                emb.add_field(name="l4tl:", value=msg.jump_url, inline=True)
                 chnl = self.bot.get_channel(self.bot.config['WORST_OF'])
                 await chnl.send(
                     f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
                     embed=emb)
 
-            elif name == 'upvote':
+            elif name == 'upvote': # Add to bestof
+                emb = discord.Embed(title=msg.content, colour=msg.author.colour)  # Create embed
+                emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
+                emb.add_field(name="l4tl:", value=msg.jump_url, inline=True)
                 chnl = self.bot.get_channel(self.bot.config['BEST_OF'])
                 await chnl.send(
                     f"**{user.name} declared the following to be highly esteemed content:**",
                     embed=emb)
-    
+
+            elif name == '🕔': # Add to watchlist
+                wl = self.storage.read('watchlist')
+                uid = str(user.id)
+                if uid not in wl:
+                    wl[uid] = []
+                    self.storage.write('watchlist', wl)
+                url = re.search(r'http\S+', msg.content).group(0)
+                if url not in wl[uid]:
+                    wl[uid].append(url)
+                    self.storage.write('watchlist', wl)
+
+            elif name == '👀' or name == '👂': # Remove from watchlist
+                wl = self.storage.read('watchlist')
+                uid = str(user.id)
+                url = re.search(r'http\S+', msg.content).group(0)
+                if uid in wl and url in wl[uid]:
+                    wl[uid].remove(url)
+                    self.storage.write('watchlist', wl)
+
+
+    @commands.command()
+    async def watchlist(self, ctx):
+        uid = str(ctx.author.id)
+        if uid in self.storage['watchlist'] and self.storage['watchlist'][uid]:
+            if ctx.author.dm_channel is None:
+                await ctx.author.create_dm()
+            channel = ctx.author.dm_channel
+
+            for url in self.storage['watchlist'][uid]:
+                try: # User might not accept DMs
+                    msg = await channel.send(url)
+                except:
+                    msg = await ctx.send(url)
+                await msg.add_reaction("👀")
+        else:
+            await ctx.send("You have no videos in your watch list")
+
     @commands.command()
     async def ip(self, ctx, **kwargs):
         if "pipe" in kwargs:
