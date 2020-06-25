@@ -50,7 +50,7 @@ class Tony(commands.Bot):
         print("Bot up and running")
 
     def filter(self, msg, bot_allowed = False): # Filter received messages
-        return (bot_allowed or msg.author.id != self.user.id) and msg.guild.id == self.config['SERVER_ID'] and msg.channel.id not in self.config['BANNED_CHANNELS']
+        return (bot_allowed or msg.author.id != self.user.id) and msg.guild and msg.guild.id == self.config['SERVER_ID'] and msg.channel and msg.channel.id not in self.config['BANNED_CHANNELS']
 
 bot = Tony(command_prefix='!', case_insensitive=False)  # Configure bot prefix
 bot.remove_command('help')  # Remove keyword "help" from reserved command list
