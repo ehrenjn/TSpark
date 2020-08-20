@@ -57,7 +57,7 @@ class LegoFuncs(commands.Cog):
                 async with cur_channel.typing():
                     await cur_channel.send('AI...?')
                     await asyncio.sleep(random.randint(30, 50))
-                    await cur_channel.send('Just uhhhh...\nhttps://www.youtube.com/watch?v=fUkq2sArNl0&t=57s')
+                    await cur_channel.send('bum to the boo to the bum to the bass https://www.youtube.com/watch?v=bawDe5jag68')
 
 
     @commands.Cog.listener()
@@ -71,45 +71,43 @@ class LegoFuncs(commands.Cog):
         except AttributeError:
             return
         else:
-            if msg.attachments:  # If the original message has attachments, add them to the embed
-                emb.set_image(url=list(msg.attachments)[0].url)
-
-            if name == 'downvote': # Add to worstof
+            if name == 'upvote' or name == 'downvote': # Add to best/worstof
                 emb = discord.Embed(title=msg.content, colour=msg.author.colour)  # Create embed
                 emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
                 emb.add_field(name="l4tl:", value=msg.jump_url, inline=True)
-                chnl = self.bot.get_channel(self.bot.config['WORST_OF'])
-                await chnl.send(
-                    f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
-                    embed=emb)
+                
+                if msg.attachments:
+                    emb.set_image(url=list(msg.attachments)[0].url)
 
-            elif name == 'upvote': # Add to bestof
-                emb = discord.Embed(title=msg.content, colour=msg.author.colour)  # Create embed
-                emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
-                emb.add_field(name="l4tl:", value=msg.jump_url, inline=True)
-                chnl = self.bot.get_channel(self.bot.config['BEST_OF'])
-                await chnl.send(
-                    f"**{user.name} declared the following to be highly esteemed content:**",
-                    embed=emb)
+                if name == 'downvote':
+                    chnl = self.bot.get_channel(self.bot.config['WORST_OF'])
+                    await chnl.send(
+                        f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
+                        embed=emb)
+                elif name == 'upvote':
+                    chnl = self.bot.get_channel(self.bot.config['BEST_OF'])
+                    await chnl.send(
+                        f"**{user.name} declared the following to be highly esteemed content:**",
+                        embed=emb)
 
             elif name == '🕔': # Add to watchlist
                 wl = self.storage.read('watchlist')
                 uid = str(user.id)
-                if uid not in wl:
-                    wl[uid] = []
+                if uid not in self.storage['watchlist']:
+                    wl[uid] = {}
                     self.storage.write('watchlist', wl)
-                url = re.search(r'http\S+', msg.content).group(0)
-                if url not in wl[uid]:
-                    wl[uid].append(url)
-                    self.storage.write('watchlist', wl)
+                for url in re.findall(r'http\S+', msg.content):
+                    if url not in wl[uid]:
+                        wl[uid][url] = msg.jump_url
+                self.storage.write('watchlist', wl)
 
             elif name == '👀' or name == '👂': # Remove from watchlist
                 wl = self.storage.read('watchlist')
                 uid = str(user.id)
-                url = re.search(r'http\S+', msg.content).group(0)
-                if uid in wl and url in wl[uid]:
-                    wl[uid].remove(url)
-                    self.storage.write('watchlist', wl)
+                for url in re.findall(r'http\S+', msg.content):
+                    if uid in wl and url in wl[uid]:
+                        del wl[uid][url]
+                        self.storage.write('watchlist', wl)
 
 
     @commands.command()
@@ -120,11 +118,11 @@ class LegoFuncs(commands.Cog):
                 await ctx.author.create_dm()
             channel = ctx.author.dm_channel
 
-            for url in self.storage['watchlist'][uid]:
+            for url, msgURL in self.storage['watchlist'][uid].items():
                 try: # User might not accept DMs
-                    msg = await channel.send(url)
+                    msg = await channel.send(f"{url} ({msgURL})")
                 except:
-                    msg = await ctx.send(url)
+                    msg = await ctx.send(f"{url} ({msgURL})")
                 await msg.add_reaction("👀")
         else:
             await ctx.send("You have no videos in your watch list")

@@ -49,7 +49,7 @@ class WakFuncs(commands.Cog):
         else:
             await ctx.send(return_val)
 
-    @commands.command()
+    @commands.command(aliases=['image'])
     async def img(self, ctx, *args):
         query = '+'.join(args) + '&source=lnms&tbm=isch'
         url = 'https://www.google.ca/search?q=' + query
