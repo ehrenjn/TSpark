@@ -330,7 +330,7 @@ class LegoFuncs(commands.Cog):
         rJSON = response.json()
         rString = f"**Exit Status:** {rJSON['status']}"
 
-        if rJSON['status'] == 0:
+        if rJSON['status'] == 'pass':
             color = 65280
         else:
             color = 16711680
@@ -338,14 +338,14 @@ class LegoFuncs(commands.Cog):
         if 'input' in request.keys():
             rString += "\n**Input:**"
             for case in request['input']:
-                rString += f"\n\tCase {request['input'].index(case + 1)}"
-                rString += '\n\t\t'.join(case)
+                rString += f"\n\tCase {request['input'].index(case) + 1}:"
+                rString += f"\n\t\t{str(case)}"
 
         if 'output' in rJSON.keys():
             rString += "\n**Output:**"
             for case in rJSON['output']:
                 rString += f"\n\tCase {rJSON['output'].index(case) + 1}:"
-                rString += '\n\t\t'.join(case)
+                rString += f"\n\t\t{str(case)}"
 
         if 'error' in rJSON.keys():
             rString += "\n**Errors:**\n" + ' '.join(rJSON['error'])
