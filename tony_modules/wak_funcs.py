@@ -134,6 +134,7 @@ class WakFuncs(commands.Cog):
                     msg = discord.Embed(
                         title=data['title'] if 'title' in data else None,
                         description=data['description'] if 'description' in data else None,
+                        url=data['content_urls']['desktop']['page'] if 'content_urls' in data else None,
                         color=16777215
                     )
                     if 'extract' in data:
