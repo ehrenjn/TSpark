@@ -109,7 +109,29 @@ class LegoFuncs(commands.Cog):
                         del wl[uid][url]
                         self.storage.write('watchlist', wl)
 
+    @commands.command()
+    async def spoiler(self, ctx, *args, **kwargs):
+        args = list(args)
+        files = []
+        channel = self.bot.get_channel(self.bot.config['SPOILER_ID'])
+        
+        if '-m' in args:
+            while '-m' in args:
+                msg = await ctx.channel.fetch_message(args.pop(args.index('-m') + 1))
+                args.remove('-m')
+                files += [await attachment.to_file() for attachment in msg.attachments]
+        else:
+            files = [await attachment.to_file() for attachment in ctx.message.attachments]
+        
+        if not files:
+            await ctx.send("Error: No attachments found")
+            return
+        
+        for f in files:
+            f.filename = f"SPOILER_{f.filename}"
+        await ctx.send(' '.join(args), files=files)
 
+    
     @commands.command()
     async def watchlist(self, ctx):
         uid = str(ctx.author.id)
