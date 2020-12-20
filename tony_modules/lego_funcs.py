@@ -109,6 +109,14 @@ class LegoFuncs(commands.Cog):
                         del wl[uid][url]
                         self.storage.write('watchlist', wl)
 
+    @commands.command(aliases=['temp'])
+    async def temperature(self, ctx):
+        for url in self.bot.config['TEMP_URLS']:
+            try:
+                await ctx.send(f"{url['name']}: {requests.get(url['url'], timeout=2).text}")
+            except:
+                await ctx.send(f"Failed to reach {url['name']}")
+
     @commands.command()
     async def spoiler(self, ctx, *args, **kwargs):
         args = list(args)
