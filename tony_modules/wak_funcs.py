@@ -51,7 +51,10 @@ class WakFuncs(commands.Cog):
 
     @commands.command(aliases=['image'])
     async def img(self, ctx, *args):
-        query = '+'.join(args) + '&source=lnms&tbm=isch'
+        await self.send_image(ctx, args)
+
+    async def send_image(self, ctx, words):
+        query = '+'.join(words) + '&source=lnms&tbm=isch'
         url = 'https://www.google.ca/search?q=' + query
         data = requests.get(url).content.decode(errors='ignore')
         imgs = re.findall(r'src="(https?://(?:encrypted-tbn0|t0)\.gstatic\.com/images.+?)"', data)
@@ -97,31 +100,47 @@ class WakFuncs(commands.Cog):
             await ctx.send("removed playable")
         else:
             await ctx.send("Couldn't find playable: " + cmd)
+    
+    @commands.command(aliases=['jif'])
+    async def gif(self, ctx, *args):
+        await self.send_gif(ctx, args)
+    
+    async def send_gif(self, ctx, words):
+        endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5" # limit search to 5 gifs
+        api_key = "CNAW21Y2RSUB"
+        msg = ' '.join(words) # join the words together before parsing out punctuation so that empty words don't count as a word (unless there are no words at all)
+        msg = re.sub('[.;,!]', '', msg) # remove punctuation from msg (EVEN IF MSG IS 100% PUNCTUATION EVERYTHING WORKS, this is because ''.split(' ') will become [''] which will then search tenor for nothing, which just gets back trending gifs or something so it's fine)
+        words = msg.split(' ')
+        num_search_terms = len(words)
+        if num_search_terms > 3: # max 3 search terms
+            num_search_terms = 3
+        words.sort(key=len, reverse=True) # sort words from longest to shortest
+        for num_words in range(num_search_terms, 0, -1):
+            search_words = words[0: num_words]
+            search_term = ' '.join(search_words)
+            res = requests.get(endpoint.format(search=search_term, api_key=api_key)).json()
+            results = res['results']
+            if len(results) > 0:
+                gif = random.choice(results)
+                await ctx.send(gif['url'])
+                break
+            print("no results for '{}'".format(search_term))
+
 
     @commands.Cog.listener()
     async def on_message(self, mess):
-        roll = random.randint(1, self.bot.config['TENOR_CHANCE'])
-        if mess.author.id != self.bot.user.id and roll == 1:
-            endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5"  # limit search to 5 gifs
-            api_key = "CNAW21Y2RSUB"
-            msg = mess.content
-            msg = re.sub('[.;,!]', '',
-                         msg)  # remove punctuation from msg (EVEN IF MSG IS 100% PUNCTUATION EVERYTHING WORKS, this is because ''.split(' ') will become [''] which will then search tenor for nothing, which just gets back trending gifs or something so it's fine)
-            words = msg.split(' ')
-            num_search_terms = len(words)
-            if num_search_terms > 3:  # max 3 search terms
-                num_search_terms = 3
-            words.sort(key=len, reverse=True)  # sort words from longest to shortest
-            for num_words in range(num_search_terms, 0, -1):
-                search_words = words[0: num_words]
-                search_term = ' '.join(search_words)
-                res = requests.get(endpoint.format(search=search_term, api_key=api_key)).json()
-                results = res['results']
-                if len(results) > 0:
-                    gif = random.choice(results)
-                    await mess.channel.send(gif['url'])
-                    break
-                print("no results for '{}'".format(search_term))
+        if mess.author.id != self.bot.user.id:
+
+            # godworld spam
+            if mess.channel.id == self.bot.config['GOD_WORLD'] and not mess.content.startswith('http'):
+                spam_func = random.choice([self.send_image, self.send_gif])
+                await spam_func(mess.channel, mess.content.split(' '))
+
+            else:
+                roll = random.randint(1, self.bot.config['TENOR_CHANCE'])
+                if roll == 1:
+                    await self.send_image(mess.channel, mess.content.split(' '))
+
 
     @commands.command()
     async def wiki(self, ctx, *, query):
