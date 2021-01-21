@@ -109,6 +109,33 @@ class LegoFuncs(commands.Cog):
                         del wl[uid][url]
                         self.storage.write('watchlist', wl)
 
+    @commands.command()
+    async def anime(self, ctx, *args):
+        args = list(args)
+        creativity = "2.0"
+        seed = str(random.randint(0, 49999)).zfill(4)
+
+        if '-r' in args:
+            creativity = round(random.uniform(0.3, 2.0), 1)
+
+        elif '-c' in args:
+            try:
+                c = float(args[args.index('-c') + 1])
+                if c >= 0.3 and c <= 2.0:
+                    creativity = str(c)
+            except:
+                pass
+        
+        if '-s' in args:
+            try:
+                s = int(args[args.index('-s') + 1])
+                if s >= 0 and s <= 49999:
+                    seed = str(s).zfill(4)
+            except:
+                pass
+        
+        await ctx.send(f"https://thisanimedoesnotexist.ai/results/psi-{creativity}/seed{seed}.png")
+
     @commands.command(aliases=['temp'])
     async def temperature(self, ctx):
         for url in self.bot.config['TEMP_URLS']:
