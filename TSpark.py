@@ -34,10 +34,10 @@ class Tony(commands.Bot):
         self.config = JSONStore(os.path.join(ROOTPATH, 'storage', 'config.json'))  # Auxiliary global variables
     
     async def announce(self, msg, emb = None):
-        await bot.get_channel(bot.config['ANNOUNCEMENTS']).send(msg, embed = emb)
+        await bot.get_channel(bot.config['CHANNEL_IDS']['ANNOUNCEMENTS']).send(msg, embed = emb)
 
     async def log(self, msg, emb = None):
-        await bot.get_channel(bot.config['ERROR']).send(msg)
+        await bot.get_channel(bot.config['CHANNEL_IDS']['ERROR']).send(msg)
     
     async def mods(self): # Logs module import errors to dedicated error channel
         await bot.wait_until_ready()
@@ -50,7 +50,7 @@ class Tony(commands.Bot):
         print("Bot up and running")
 
     def filter(self, msg, bot_allowed = False): # Filter received messages
-        return (bot_allowed or msg.author.id != self.user.id) and msg.guild and msg.guild.id == self.config['SERVER_ID'] and msg.channel and msg.channel.id not in self.config['BANNED_CHANNELS']
+        return (bot_allowed or msg.author.id != self.user.id) and msg.guild and msg.guild.id == self.config['SERVER_ID'] and msg.channel and msg.channel.id not in self.config['CHANNEL_IDS']['BANNED_CHANNELS']
 
 bot = Tony(command_prefix='!', case_insensitive=False)  # Configure bot prefix
 bot.remove_command('help')  # Remove keyword "help" from reserved command list
@@ -114,7 +114,7 @@ async def on_raw_message_delete(raw):
         emb.set_author(name=msg.author.display_name + ':', icon_url=msg.author.avatar_url)
         if msg.attachments:
             emb.set_image(url=list(msg.attachments)[0].url)
-        await bot.get_channel(bot.config['RECYCLE_BIN']).send(f"**The following message was deleted from {channel.mention}:**", embed=emb)
+        await bot.get_channel(bot.config['CHANNEL_IDS']['RECYCLE_BIN']).send(f"**The following message was deleted from {channel.mention}:**", embed=emb)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # COMMANDS
