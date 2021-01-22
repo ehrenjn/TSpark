@@ -107,7 +107,6 @@ class WakFuncs(commands.Cog):
     
     async def send_gif(self, ctx, words):
         endpoint = "https://api.tenor.com/v1/search?q={search}&key={api_key}&limit=5" # limit search to 5 gifs
-        api_key = "CNAW21Y2RSUB"
         msg = ' '.join(words) # join the words together before parsing out punctuation so that empty words don't count as a word (unless there are no words at all)
         msg = re.sub('[.;,!]', '', msg) # remove punctuation from msg (EVEN IF MSG IS 100% PUNCTUATION EVERYTHING WORKS, this is because ''.split(' ') will become [''] which will then search tenor for nothing, which just gets back trending gifs or something so it's fine)
         words = msg.split(' ')
@@ -118,6 +117,7 @@ class WakFuncs(commands.Cog):
         for num_words in range(num_search_terms, 0, -1):
             search_words = words[0: num_words]
             search_term = ' '.join(search_words)
+            api_key = self.bot.config['TENOR_API_KEY']
             res = requests.get(endpoint.format(search=search_term, api_key=api_key)).json()
             results = res['results']
             if len(results) > 0:
@@ -132,7 +132,7 @@ class WakFuncs(commands.Cog):
         if mess.author.id != self.bot.user.id:
 
             # godworld spam
-            if mess.channel.id == self.bot.config['GOD_WORLD'] and not mess.content.startswith('http'):
+            if mess.channel.id == self.bot.config['CHANNEL_IDS']['GOD_WORLD'] and not mess.content.startswith('http'):
                 spam_func = random.choice([self.send_image, self.send_gif])
                 await spam_func(mess.channel, mess.content.split(' '))
 
