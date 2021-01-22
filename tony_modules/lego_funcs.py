@@ -45,11 +45,11 @@ class LegoFuncs(commands.Cog):
         if self.bot.filter(message, False):
             cur_channel = self.bot.get_channel(message.channel.id)
 
-            if message.channel.id in self.bot.config['VIDEO_IDS'] and "http" in message.content:
+            if message.channel.id in self.bot.config['CHANNEL_IDS']['VIDEO_IDS'] and "http" in message.content:
                 await message.add_reaction("👀")
                 await message.add_reaction("🕔")
 
-            elif message.channel.id == self.bot.config['MUSIC_ID'] and "http" in message.content:
+            elif message.channel.id == self.bot.config['CHANNEL_IDS']['MUSIC'] and "http" in message.content:
                 await message.add_reaction("👂")
                 await message.add_reaction("🕔")
 
@@ -80,12 +80,12 @@ class LegoFuncs(commands.Cog):
                     emb.set_image(url=list(msg.attachments)[0].url)
 
                 if name == 'downvote':
-                    chnl = self.bot.get_channel(self.bot.config['WORST_OF'])
+                    chnl = self.bot.get_channel(self.bot.config['CHANNEL_IDS']['WORST_OF'])
                     await chnl.send(
                         f"**{user.name} has declared the following to be rude, or otherwise offensive content:**",
                         embed=emb)
                 elif name == 'upvote':
-                    chnl = self.bot.get_channel(self.bot.config['BEST_OF'])
+                    chnl = self.bot.get_channel(self.bot.config['CHANNEL_IDS']['BEST_OF'])
                     await chnl.send(
                         f"**{user.name} declared the following to be highly esteemed content:**",
                         embed=emb)
@@ -109,6 +109,33 @@ class LegoFuncs(commands.Cog):
                         del wl[uid][url]
                         self.storage.write('watchlist', wl)
 
+    @commands.command()
+    async def anime(self, ctx, *args):
+        args = list(args)
+        creativity = "2.0"
+        seed = str(random.randint(0, 49999)).zfill(4)
+
+        if '-r' in args:
+            creativity = round(random.uniform(0.3, 2.0), 1)
+
+        elif '-c' in args:
+            try:
+                c = float(args[args.index('-c') + 1])
+                if c >= 0.3 and c <= 2.0:
+                    creativity = str(c)
+            except:
+                pass
+        
+        if '-s' in args:
+            try:
+                s = int(args[args.index('-s') + 1])
+                if s >= 0 and s <= 49999:
+                    seed = str(s).zfill(4)
+            except:
+                pass
+        
+        await ctx.send(f"https://thisanimedoesnotexist.ai/results/psi-{creativity}/seed{seed}.png")
+
     @commands.command(aliases=['temp'])
     async def temperature(self, ctx):
         for url in self.bot.config['TEMP_URLS']:
@@ -121,7 +148,7 @@ class LegoFuncs(commands.Cog):
     async def spoiler(self, ctx, *args, **kwargs):
         args = list(args)
         files = []
-        channel = self.bot.get_channel(self.bot.config['SPOILER_ID'])
+        channel = self.bot.get_channel(self.bot.config['CHANNEL_IDS']['SPOILER'])
         
         if '-m' in args:
             while '-m' in args:
