@@ -138,7 +138,7 @@ class LegoFuncs(commands.Cog):
 
     @commands.command(aliases=['temp'])
     async def temperature(self, ctx):
-        for url in self.bot.config['TEMP_URLS']:
+        for url in self.bot.config['URLS']['TEMP_URLS']:
             try:
                 await ctx.send(f"{url['name']}: {requests.get(url['url'], timeout=2).text}")
             except:
@@ -216,7 +216,7 @@ class LegoFuncs(commands.Cog):
                 if word not in word_map:
                     try:
                         resp = requests.get(
-                                f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['MW_KEY']}"
+                                f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['API_KEYS']['MERRIAM_WEBSTER']}"
                                 ).json()
                         
                         audio = resp[0]["hwi"]["prs"][0]["sound"]["audio"]
@@ -312,7 +312,7 @@ class LegoFuncs(commands.Cog):
             limit = 1
         
         word = re.sub(r'[^a-zA-Z0-9\']', '', args[-1])
-        url = f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['MW_KEY']}"
+        url = f"https://www.dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={self.bot.config['API_KEYS']['MERRIAM_WEBSTER']}"
 
         try:
             resp = requests.get(url).json()
@@ -382,7 +382,7 @@ class LegoFuncs(commands.Cog):
                 await ctx.send(f"Error: No {key} value provided")
                 return
 
-        response = requests.post(self.bot.config['PYDE_IP'], '', request)
+        response = requests.post(self.bot.config['URLS']['PYDE'], '', request)
 
         rJSON = response.json()
         rString = f"**Exit Status:** {rJSON['status']}"
@@ -501,13 +501,13 @@ class LegoFuncs(commands.Cog):
 
         async def soundcloud(sesh, page, headerdata):
             songs = []
-            trackParams = {"client_id": self.bot.config['SC_ID']}
+            trackParams = {"client_id": self.bot.config['API_KEYS']['SOUNDCLOUD']}
             ids = set(re.findall(r'"id":[0-9]{5,}', page))
             
             for i in ids:
                 try:
                     i = str(i)[5:]
-                    infoURL = f"https://api-v2.soundcloud.com/tracks/{i}?client_id={self.bot.config['SC_ID']}"
+                    infoURL = f"https://api-v2.soundcloud.com/tracks/{i}?client_id={self.bot.config['API_KEYS']['SOUNDCLOUD']}"
                     info = await get(sesh, infoURL, headerdata, trackParams)
                     dlurl = list(filter(lambda u: u["format"]["protocol"] == "progressive", info.json()["media"]["transcodings"]))[0]["url"]
                     mp3URL = await get(sesh, dlurl, headerdata, trackParams)

@@ -7,6 +7,7 @@ import asyncio
 import os
 import re
 import traceback
+import subprocess
 
 import discord
 from discord.ext import commands
@@ -48,6 +49,12 @@ class Tony(commands.Bot):
             except Exception as e:
                 await bot.log(f"```Failed to import {module}:\n{traceback.format_exc()}```")
         print("Bot up and running")
+
+    def restart(self):
+        exit()
+
+    def pull(self):
+        return subprocess.run(["git", "pull"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def filter(self, msg, bot_allowed = False): # Filter received messages
         return (bot_allowed or msg.author.id != self.user.id) and msg.guild and msg.guild.id == self.config['SERVER_ID'] and msg.channel and msg.channel.id not in self.config['CHANNEL_IDS']['BANNED_CHANNELS']
@@ -124,16 +131,28 @@ async def on_raw_message_delete(raw):
 async def help(ctx):
     await ctx.send(f"```css\n{open(os.path.join(ROOTPATH, 'help.txt'), 'r').read()}```")
 
-
 @bot.command()
 async def restart(ctx):
     await ctx.send("Restarting.... This could take a while")
-    exit()
+    bot.restart()
+
+@bot.command()
+async def rebase(ctx):
+    await ctx.send("Pulling and restarting.... This could take a while")
+    pull = bot.pull()
+
+    if pull.returncode:
+        await ctx.send(f"```Error:\n{pull.stderr.decode('utf-8')}```")
+    elif 'up to date' in pull.stdout.decode('utf-8'):
+        await ctx.send(f"Nothing changed - not restarting")
+    else:
+        await ctx.send(f"```{pull.stdout.decode('utf-8')}```")
+        bot.restart()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOT STARTUP
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 asyncio.ensure_future(bot.mods())
-bot.run(bot.config['TOKEN'], bot=True)
+bot.run(bot.config['API_KEYS']['BOT_TOKEN'], bot=True)
 

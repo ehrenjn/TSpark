@@ -117,7 +117,7 @@ class WakFuncs(commands.Cog):
         for num_words in range(num_search_terms, 0, -1):
             search_words = words[0: num_words]
             search_term = ' '.join(search_words)
-            api_key = self.bot.config['TENOR_API_KEY']
+            api_key = self.bot.config['API_KEYS']['TENOR']
             res = requests.get(endpoint.format(search=search_term, api_key=api_key)).json()
             results = res['results']
             if len(results) > 0:
@@ -139,7 +139,7 @@ class WakFuncs(commands.Cog):
             else:
                 roll = random.randint(1, self.bot.config['TENOR_CHANCE'])
                 if roll == 1:
-                    await self.send_image(mess.channel, mess.content.split(' '))
+                    await self.send_gif(mess.channel, mess.content.split(' '))
 
 
     @commands.command()
