@@ -28,6 +28,28 @@ MODULES = [
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOT SETUP
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class Pipe(commands.context.Context):
+    def __init__(self, ctx):
+        self.__ctx = ctx
+        self.content = ''
+
+    async def send(self, *args, **kwargs):
+        if 'embed' in kwargs:
+            if kwargs['embed'].description:
+                self.content = kwargs['embed'].description
+            elif kwargs['embed'].title:
+                self.content = kwargs['embed'].title
+        elif args:
+            self.content = ' '.join(args)
+
+    def __getattr__(self, attr):
+        return getattr(self.__ctx, attr)
+
+    def __setattr__(self, attr, value):
+        if attr == '_Pipe__ctx':
+            object.__setattr__(self, attr, value)
+
+        return setattr(self.__ctx, attr, value)
 
 class Tony(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -59,6 +81,13 @@ class Tony(commands.Bot):
     def filter(self, msg, bot_allowed = False): # Filter received messages
         return (bot_allowed or msg.author.id != self.user.id) and msg.guild and msg.guild.id == self.config['SERVER_ID'] and msg.channel and msg.channel.id not in self.config['CHANNEL_IDS']['BANNED_CHANNELS']
 
+    async def pipeable(self, command):
+        async def wrapper(self, ctx, *args, **kwargs):
+            # do before
+            await ctx.send("pipe test")
+            # do after
+        return wrapper
+
 bot = Tony(command_prefix='!', case_insensitive=False)  # Configure bot prefix
 bot.remove_command('help')  # Remove keyword "help" from reserved command list
 
@@ -74,7 +103,15 @@ async def on_message(msg):
             sub = re.search(r'\$\(![a-z]+[^$()]*\)', msg.content)[0]
             args = sub[3:-1].split(" ") # Strip "$(!" and ")" and split the isolated command into pieces
             cmd = args.pop(0) # First piece is the command name
-            msg.content = msg.content.replace(sub, await bot.get_command(cmd).__call__(ctx, *args, pipe=True), 1)
+            pipe = Pipe(ctx)
+           
+            arg_name = str(list(bot.get_command(cmd).clean_params.values())[0])
+            if '*' in arg_name:
+                await bot.get_command(cmd).__call__(pipe, *args)
+            else:
+                await bot.get_command(cmd).__call__(pipe, **{arg_name: ' '.join(args)})
+            
+            msg.content = msg.content.replace(sub, pipe.content, 1)
 
         await bot.process_commands(msg)  # Process any base commands using the substituted values
 

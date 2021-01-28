@@ -23,7 +23,6 @@ from urllib.parse import urlparse
 ROOTPATH = os.environ['TONYROOT']  # Bot's root path
 STORAGE_FILE = os.path.join(ROOTPATH, 'storage', 'lego_storage.json')
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class LegoStore(JSONStore):
@@ -110,6 +109,10 @@ class LegoFuncs(commands.Cog):
                         self.storage.write('watchlist', wl)
 
     @commands.command()
+    async def echo(self, ctx, *args):
+        await ctx.send(' '.join(args))
+
+    @commands.command()
     async def anime(self, ctx, *args):
         args = list(args)
         creativity = "2.0"
@@ -145,7 +148,7 @@ class LegoFuncs(commands.Cog):
                 await ctx.send(f"Failed to reach {url['name']}")
 
     @commands.command()
-    async def spoiler(self, ctx, *args, **kwargs):
+    async def spoiler(self, ctx, *args):
         args = list(args)
         files = []
         channel = self.bot.get_channel(self.bot.config['CHANNEL_IDS']['SPOILER'])
@@ -185,10 +188,7 @@ class LegoFuncs(commands.Cog):
             await ctx.send("You have no videos in your watch list")
 
     @commands.command()
-    async def ip(self, ctx, **kwargs):
-        if "pipe" in kwargs:
-            return (requests.get("https://ifconfig.me").text)
-        
+    async def ip(self, ctx):
         await ctx.send(requests.get("https://ifconfig.me").text)
 
     @commands.command()
@@ -305,7 +305,7 @@ class LegoFuncs(commands.Cog):
         await ctx.send(file=discord.File(io.BytesIO(sentence_file.read()), filename="speak.wav"))
 
     @commands.command()
-    async def define(self, ctx, *args, **kwargs):
+    async def define(self, ctx, *args):
         if '-n' in args:
             limit = args[args.index('-n') + 1]
         else:
@@ -326,9 +326,6 @@ class LegoFuncs(commands.Cog):
             except:
                 await ctx.send(f"{word} has no more definitions")
                 break
-
-            if "pipe" in kwargs:
-                return emb.description
 
             await ctx.send(embed=emb)
 
@@ -421,14 +418,11 @@ class LegoFuncs(commands.Cog):
 
 
     @commands.command()
-    async def joke(self, ctx, **kwargs):  # Tell a joke using the official Chuck Norris Joke API©
+    async def joke(self, ctx):  # Tell a joke using the official Chuck Norris Joke API©
         resp = requests.get('https://api.chucknorris.io/jokes/random').json()  # Get the response in JSON
         emb = discord.Embed(title=resp['value'])  # Prepare the embed
-        emb.set_author(name='', icon_url=resp['icon_url'].replace('\\', ''))  # Attach icon
+        emb.set_author(name='​', icon_url=resp['icon_url'])  # Attach icon
         
-        if "pipe" in kwargs:
-            return emb.title
-
         await ctx.send(embed=emb)
 
     @commands.command()
@@ -569,10 +563,8 @@ class LegoFuncs(commands.Cog):
         await ctx.send("All done")
 
     @commands.command()
-    async def roll(self, ctx, **kwargs):  # Outputs the message id of the message sent ("roll")
-        if "pipe" in kwargs:
-            return ctx.message.id
-        await ctx.send(f"{ctx.author.display_name} rolled a {ctx.message.id}")
+    async def roll(self, ctx):  # Outputs the message id of the message sent ("roll")
+        await ctx.send(f"{ctx.message.id}")
 
     @commands.command()
     async def nab(self, ctx, *cmds):  # Gets all messages between last two instances of messages with given reaction(s)
@@ -832,8 +824,8 @@ async def lego_background(bot, storage):
         await asyncio.sleep(15)
 
 
+
 def setup(bot):
     storage = LegoStore()
     bot.add_cog(LegoFuncs(bot, storage))
     bot.loop.create_task(lego_background(bot, storage))
-
