@@ -108,11 +108,12 @@ class LegoFuncs(commands.Cog):
                         del wl[uid][url]
                         self.storage.write('watchlist', wl)
 
-    @commands.command()
+    @commands.command(description = "<str> ~ Echo input as output, useful for testing pipes")
     async def echo(self, ctx, *args):
         await ctx.send(' '.join(args))
 
-    @commands.command()
+    @commands.command(description = "~ Find AI-generated anime scrots", 
+            usage = "\n\t-r : Random creativity level\n\t-c <creativity> : Set creativity level\n\t-s <seed> : Set seed")
     async def anime(self, ctx, *args):
         args = list(args)
         creativity = "2.0"
@@ -139,7 +140,7 @@ class LegoFuncs(commands.Cog):
         
         await ctx.send(f"https://thisanimedoesnotexist.ai/results/psi-{creativity}/seed{seed}.png")
 
-    @commands.command(aliases=['temp'])
+    @commands.command(aliases=['temp'], description = "~ Get current temperature at the gamer house")
     async def temperature(self, ctx):
         for url in self.bot.config['URLS']['TEMP_URLS']:
             try:
@@ -147,7 +148,8 @@ class LegoFuncs(commands.Cog):
             except:
                 await ctx.send(f"Failed to reach {url['name']}")
 
-    @commands.command()
+    @commands.command(description = "~ Generate spoiler'd files on mobile",
+            usage = "-m <message ID> : Specify message to pull files from")
     async def spoiler(self, ctx, *args):
         args = list(args)
         files = []
@@ -170,7 +172,7 @@ class LegoFuncs(commands.Cog):
         await ctx.send(' '.join(args), files=files)
 
     
-    @commands.command()
+    @commands.command(description = "~ View your watchlist")
     async def watchlist(self, ctx):
         uid = str(ctx.author.id)
         if uid in self.storage['watchlist'] and self.storage['watchlist'][uid]:
@@ -187,11 +189,12 @@ class LegoFuncs(commands.Cog):
         else:
             await ctx.send("You have no videos in your watch list")
 
-    @commands.command()
+    @commands.command(description = "~ Output Tony's public IP")
     async def ip(self, ctx):
         await ctx.send(requests.get("https://ifconfig.me").text)
 
-    @commands.command()
+    @commands.command(description = "<str> ~ Converts a string to speech",
+            usage = "\n\t[config] : Object in form {<speed>, <pitch>}")
     async def speak(self, ctx, *args):
         word_map = {}
         words = list(args)
@@ -304,7 +307,7 @@ class LegoFuncs(commands.Cog):
         sentence_file.seek(0)
         await ctx.send(file=discord.File(io.BytesIO(sentence_file.read()), filename="speak.wav"))
 
-    @commands.command()
+    @commands.command(description = "<word> ~ Define a given word", usage = "\n\t-n <#> : Number of defintions to provide")
     async def define(self, ctx, *args):
         if '-n' in args:
             limit = args[args.index('-n') + 1]
@@ -345,7 +348,8 @@ class LegoFuncs(commands.Cog):
         except:
             await ctx.send("No pronunciation found")
 
-    @commands.command()
+    @commands.command(description = "<options> ~ Execute code in various languages", 
+            usage = "\n\t-m <message ID> : Message to read the code from\n\t-l <language>\n\t-c <code>\n\t-i <input> : Input is a JSON list of lists, i.e. [[0]]\n\tCode should take input from stdin and output to stdout")
     async def pyde(self, ctx, *args):
         request = {}
         if '-m' in args:
@@ -417,15 +421,16 @@ class LegoFuncs(commands.Cog):
             ))
 
 
-    @commands.command()
-    async def joke(self, ctx):  # Tell a joke using the official Chuck Norris Joke API©
+    @commands.command(description = "~ Tells a joke")
+    async def joke(self, ctx):
         resp = requests.get('https://api.chucknorris.io/jokes/random').json()  # Get the response in JSON
         emb = discord.Embed(title=resp['value'])  # Prepare the embed
         emb.set_author(name='​', icon_url=resp['icon_url'])  # Attach icon
         
         await ctx.send(embed=emb)
 
-    @commands.command()
+    @commands.command(description = "<options> ~ Read or edit Tony's config aka registries",
+            usage = "\n\t-l [registry]: List all registries or value of specific registry\n\t-a <registry> <value>: Add a value to a list-based registry\n\t<registry> <value> : Edit a registry")
     async def regedit(self, ctx, *args):
         if len(args) == 0:
             await ctx.send(f'Error: Must provide options or key')
@@ -475,7 +480,7 @@ class LegoFuncs(commands.Cog):
         else:
             await ctx.send(f'Invalid registry "{args[0]}"\nValid registries are: {", ".join(self.bot.config.keys())}')
 
-    @commands.command()
+    @commands.command(description = "<link> ~ Download a link from BandCamp or SoundCloud")
     async def download(self, ctx, *links):
         sesh = requests.Session()
         headerdata = {
@@ -562,11 +567,12 @@ class LegoFuncs(commands.Cog):
 
         await ctx.send("All done")
 
-    @commands.command()
+    @commands.command(description = "~ Roll a number")
     async def roll(self, ctx):  # Outputs the message id of the message sent ("roll")
         await ctx.send(f"{ctx.message.id}")
 
-    @commands.command()
+    @commands.command(description = "<emoji> ~ Get all messages between last two instance of messages with given reaction(s)",
+            usage = "\n\t-c <#channel>\n\t-n <#> : Number of messages to search through")
     async def nab(self, ctx, *cmds):  # Gets all messages between last two instances of messages with given reaction(s)
         #  DEFAULT VALUES
         cmds = list(cmds)
@@ -610,7 +616,8 @@ class LegoFuncs(commands.Cog):
 
         await channel.send(file=discord.File(io.BytesIO(msgs), filename='nab.txt'))
 
-    @commands.command()
+    @commands.command(description = "<str> ~ Search for a given string",
+            usage = "\n\t-u <@user... (self)>\n\t-r <emoji...> : Find messages with given reaction\n\t-c <#channel...>\n\t-n <#> : Number of messages to search")
     async def search(self, ctx, *cmd):
         cmd = list(cmd)
         users = []
@@ -680,7 +687,8 @@ class LegoFuncs(commands.Cog):
         except discord.HTTPException:
             await ctx.send('Error: Dump file too large')
 
-    @commands.command()
+    @commands.command(description = "<moji> ~ Play a moji",
+            usage = "\n\t-l : List mojis\n\t-a <name> <link> : Add a moji\n\t-r <name> : Remove a moji")
     async def moji(self, ctx, opts='-l', name='', link=''):
         mojis = self.storage.read('mojis')
         if opts == '-l':
@@ -702,7 +710,8 @@ class LegoFuncs(commands.Cog):
         else:
             await ctx.send(f"Moji '{opts}' not found")
 
-    @commands.command()
+    @commands.command(description = "<# days|hours|minutes ...> ~ Set a reminder",
+            usage = "\n\t-l : List reminders\n\t-u <@user (self)> : Specify user to be reminded")
     async def reminder(self, ctx, *cmd):
         cmd = list(cmd)
         rem_index = 1
@@ -755,7 +764,8 @@ class LegoFuncs(commands.Cog):
         self.storage.write('reminders', reminders)
         await ctx.send(f"Reminder '{' '.join(cmd)}' added for {rem_date}")
 
-    @commands.command()
+    @commands.command(description = "<options> ~ Store and retrieve files from TonyCloud",
+            usage = "\n\t-l : List files\n\t-s [messageID (current) ...] : Specify message(s) to pull files from\n\t-g <#> : Get file at specified index")
     async def discloud(self, ctx, *cmd):
         cmd = list(cmd)
         path = os.path.join(ROOTPATH, 'discloud')

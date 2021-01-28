@@ -167,7 +167,8 @@ class Financials(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(description = "~ Display current IOU debts",
+            usage = "\n\tquiet : Hide parsing output")
     async def iou(self, ctx, *args):
         quiet = "quiet" in args
         if not quiet:

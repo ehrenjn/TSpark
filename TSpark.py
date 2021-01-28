@@ -164,16 +164,27 @@ async def on_raw_message_delete(raw):
 # COMMANDS
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-@bot.command()
+@bot.command(description = '~ This command')
 async def help(ctx):
-    await ctx.send(f"```css\n{open(os.path.join(ROOTPATH, 'help.txt'), 'r').read()}```")
+    content = '```diff\n<arg>: Mandatory | [arg]: Optional | (arg): Default value | ...: Can provide multiple values\nYou can also pipeline commands using $(<command>), i.e. !speak $(!joke)\n=========='
+    for command in bot.commands:
+        if command.description is None:
+            command.description = ''
+        if command.usage is None:
+            command.usage = ''
 
-@bot.command()
+        if len(content) + len(command.name) + len(command.description) + len(command.usage) >= 1900:
+            await ctx.send(f"{content}```")
+            content = '```diff'
+        content += f"\n\n!{command.name} {command.description}{command.usage}"
+    await ctx.send(f"{content}```")
+
+@bot.command(description = '~ Restart Tony')
 async def restart(ctx):
     await ctx.send("Restarting.... This could take a while")
     bot.restart()
 
-@bot.command()
+@bot.command(description = '~ Perform a git pull, then restart Tony')
 async def rebase(ctx):
     await ctx.send("Pulling and restarting.... This could take a while")
     pull = bot.pull()

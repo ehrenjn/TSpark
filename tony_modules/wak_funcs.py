@@ -29,7 +29,7 @@ class WakFuncs(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="eval")
+    @commands.command(name="eval", description = "<code> ~ Execute arbitary code")
     async def execute(self, ctx, *, cmd):  # if cmd arg is keyword only it lets discordpy know to pass in args as one string
         import random  # import locally because I don't want eval to have global namespace
         import math
@@ -49,7 +49,7 @@ class WakFuncs(commands.Cog):
         else:
             await ctx.send(return_val)
 
-    @commands.command(aliases=['image'])
+    @commands.command(aliases=['image'], description = "<search term> ~ Search Google images")
     async def img(self, ctx, *args):
         await self.send_image(ctx, args)
 
@@ -65,7 +65,7 @@ class WakFuncs(commands.Cog):
             embed.set_image(url=random.choice(imgs))
             await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(description = "<game> ~ Add a game for tony to play")
     async def play(self, ctx, *, game):
         if len(game) <= 128:
             playables = self.bot.wstorage.read('playables')
@@ -76,7 +76,7 @@ class WakFuncs(commands.Cog):
         else:
             await ctx.send("Playable wasn't added because it was > 128 chars long")
 
-    @commands.command()
+    @commands.command(description = "~ Get all messages from current channel")
     async def history(self, ctx, *args):
         await ctx.send("Reading all messages in this channel (might take a while)...")
         all_msgs = []
@@ -89,7 +89,7 @@ class WakFuncs(commands.Cog):
         message = "Found {} messages".format(len(all_msgs))  # len apparently constant time for lists
         await ctx.send(message, file=discord.File(pseudo_file, filename="dump.txt"))
 
-    @commands.command()
+    @commands.command(description = "<game> ~ Remove a game from Tony's list")
     async def unplay(self, ctx, *, cmd):
         playables = self.bot.wstorage['playables']
         if cmd in playables:
@@ -101,7 +101,7 @@ class WakFuncs(commands.Cog):
         else:
             await ctx.send("Couldn't find playable: " + cmd)
     
-    @commands.command(aliases=['jif'])
+    @commands.command(aliases=['jif'], description = "<search terms> ~ Search Tenor for gifs")
     async def gif(self, ctx, *args):
         await self.send_gif(ctx, args)
     
@@ -142,7 +142,7 @@ class WakFuncs(commands.Cog):
                     await self.send_gif(mess.channel, mess.content.split(' '))
 
 
-    @commands.command()
+    @commands.command(description = "<search terms> ~ Search Wikipedia")
     async def wiki(self, ctx, *, query):
         query = query.replace(' ', '_')
         response = requests.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{query}")
@@ -169,7 +169,7 @@ class WakFuncs(commands.Cog):
             await ctx.send("no results found")
     
 
-    @commands.command()
+    @commands.command(description = "~ Display Ontario COVID-19 data")
     async def covid(self, ctx, *args):
         api_url = "https://api.ontario.ca/api/drupal/page%2F2019-novel-coronavirus?fields=nid,field_body_beta,body"
         response = requests.get(api_url)
