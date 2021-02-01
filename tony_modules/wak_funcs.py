@@ -198,8 +198,8 @@ class WakFuncs(commands.Cog):
 
     @commands.command(
         name="lambda",
-        description="[action] [lambda name] [code or input] create and run python scripts",
-        usage = "\n\t<lambda name> <code> : create a new lambda\n\t<lambda name> [input] : execute a lambda with input\n\tdelete <lambda name> : deletes the lambda\n\tsource <lambda name> : prints a lambda's source code\n\tlist : lists all existing lambdas"
+        description="[action] [lambda name] [code] [input] ~ Create and run python scripts",
+        usage = "\n\t<lambda name> <code> : Create a new lambda\n\t<lambda name> [input] : Execute a lambda with input\n\tdelete <lambda name> : Deletes the lambda\n\tsource <lambda name> : Prints a lambda's source code\n\tlist : Lists all existing lambdas\n\tInside a lambda the following variables are available:\n\t\tprint: A function to print to discord\n\t\targs: The input passed to this lambda\n\t\tfiles: A list of files attached to the message that called the lambda\n\t\tmessage: The discord message that called the lambda"
     )
     async def user_command(self, ctx, *, text):
         split = re.split(r'[ \n]+', text, 1) # command and args are seperated by at least one space or newline or both
