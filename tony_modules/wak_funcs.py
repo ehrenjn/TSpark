@@ -237,15 +237,22 @@ class WakFuncs(commands.Cog):
         
         # execute a lambda
         elif command in lambdas:
+
+            send_calls = [] # need to keep track of calls to ctx.send so pipes work (basically piping works by checking what was sent to ctx.send after awaiting user_command. BUT asyncio.ensure_future only *schedules* the corutine, it has no way of waiting for its completion like await does. And scheduled corutines cannot run until we hand program exectution back to asyncio (via returning from an awaited corutine or awaiting a corutine). and so, since the rest of this code (including exec) is synchronous, if we used asyncio.ensure_future there would actually be no way for ctx.send calls to run until we return from user_command. This would result in a race condition in asyncio where either it has to choose between running the rest of the pipe code (that's currently awaiting user_command) or running the scheduled ctx.sends (and the pipe code seems to win the race every time). Luckily there is an easy solution: instead of scheduling the ctx.send calls, keep track of all of them and then await them all before exiting this function)
             def send(*args, **kwargs):
-                asyncio.ensure_future(ctx.send(*args, **kwargs))
+                call = ctx.send(*args, **kwargs)
+                send_calls.append(call) # don't actually schedule ctx.send calls yet (wait until we can await them all)
+
             files = [
                 await attachment.to_file() 
                 for attachment in ctx.message.attachments
             ]
             environment = {'print': send, 'args': args, 
                 'files': files, 'message': ctx.message}
+
             exec(lambdas[command], environment)
+            for coro in send_calls: # run all ctx.send calls and wait for them all to finish before returning (so pipes work)
+                await coro # using a for loop instead of asyncio.wait because asyncio.wait doesn't maintain order of execution
         
         # lambda doesn't exist yet
         else:
