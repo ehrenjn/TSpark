@@ -23,6 +23,8 @@ class WakStore(JSONStore):
         super().__init__(STORAGE_FILE)
         if self['playables'] is None:  # init playables so I don't have to keep checking if they're None
             self['playables'] = []
+        if self['lambdas'] is None: # init lambdas
+            self['lambdas'] = {}
 
 
 class WakFuncs(commands.Cog):
@@ -192,6 +194,76 @@ class WakFuncs(commands.Cog):
             msg.add_field(name=name, value=value, inline=False)
 
         await ctx.send(embed=msg)
+    
+
+    @commands.command(
+        name="lambda",
+        description="[action] [lambda name] [code or input] create and run python scripts",
+        usage = "\n\t<lambda name> <code> : create a new lambda\n\t<lambda name> [input] : execute a lambda with input\n\tdelete <lambda name> : deletes the lambda\n\tsource <lambda name> : prints a lambda's source code\n\tlist : lists all existing lambdas"
+    )
+    async def user_command(self, ctx, *, text):
+        split = re.split(r'[ \n]+', text, 1) # command and args are seperated by at least one space or newline or both
+        command = split[0]
+        args = '' if len(split) == 1 else split[1]
+        lambdas = self.bot.wstorage['lambdas']
+
+        # check if command is valid (useful for if you accidently do !lambda ```code``` or something)
+        if not command.isidentifier():
+            await ctx.send(f'"{command}" is not a valid lambda name (must be a valid Python identifier)')
+
+        # delete lambda
+        elif command == 'delete':
+            lambda_name = args
+            if lambda_name in lambdas:
+                del lambdas[lambda_name]
+                self.bot.wstorage.write('lambdas', lambdas)
+                await ctx.send(f"deleted {lambda_name}")
+            else:
+                await ctx.send(f"can't delete {lambda_name} (no lambda with that name found)")
+        
+        # get source code for lambda
+        elif command == 'source':
+            lambda_name = args
+            if lambda_name in lambdas:
+                code = lambdas[lambda_name]
+                await ctx.send(f"```py\n{code}```")
+            else:
+                await ctx.send(f"can't get source code for {lambda_name} (no lambda with that name found)")
+        
+        # list all lambdas
+        elif command == 'list':
+            lambda_list = ', '.join(lambdas.keys())
+            await ctx.send(lambda_list if lambda_list else "there are currently no lambdas")
+        
+        # execute a lambda
+        elif command in lambdas:
+            def send(*args, **kwargs):
+                asyncio.ensure_future(ctx.send(*args, **kwargs))
+            files = [
+                await attachment.to_file() 
+                for attachment in ctx.message.attachments
+            ]
+            environment = {'print': send, 'args': args, 
+                'files': files, 'message': ctx.message}
+            exec(lambdas[command], environment)
+        
+        # lambda doesn't exist yet
+        else:
+            matched_code = re.match(
+                r"^```(?:py)?(?P<code>.+)```$", 
+                args,
+                re.DOTALL
+            )
+
+            # create a new lambda if user sent code
+            if matched_code is not None:
+                lambdas[command] = matched_code.group('code')
+                self.bot.wstorage.write('lambdas', lambdas)
+                await ctx.send(f"new lambda `{command}` created")
+
+            # don't know what to do, assume user was trying to execute a lambda
+            else:
+                await ctx.send(f"can't run {command} (no lambda with that name found)")
 
 
 
